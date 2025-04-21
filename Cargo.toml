@@ -1,0 +1,14 @@
+[package]
+name = "krousinator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+typetag = "0.2"
+arboard = "3.5.0"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.26.2", features = ["native-tls"] } 
+futures-util = "0.3"
