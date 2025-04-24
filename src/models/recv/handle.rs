@@ -1,4 +1,5 @@
-#[typetag::serde(tag = "type")]
+use crate::registry::krousinator_interface::KrousinatorInterface;
+
 pub trait Handleable {
-    fn handle(&self);
+    fn handle(&self, ctx: &mut KrousinatorInterface);
 }
