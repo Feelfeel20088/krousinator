@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use crate::models::recv::handle::Handleable;
-use serde::de::DeserializeOwned;
+use crate::registry::handle::Handleable;
 
 type DynHandlerConstructor = fn(&str) -> Box<dyn Handleable>;
 
@@ -15,9 +14,10 @@ impl HandlerRegistry {
         }
     }
 
-    pub fn register(&mut self, name: &str, constructer: fn(&str) -> Box<dyn Handleable>) 
+    pub fn register(&mut self, name: &str, constructer: fn(&str) -> Box<dyn Handleable>)
     {
         self.map.insert(name.to_string(), constructer);
+        println!("{}", name.to_string());
     }
 
     pub fn get(&self, name: &str, json: &str) -> Option<Box<dyn Handleable>> {

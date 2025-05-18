@@ -1,5 +1,4 @@
-use crate::models::recv::handle::Handleable;
-use serde::de::DeserializeOwned;
+use crate::registry::handle::Handleable;
 
 pub type DynHandlerConstructor = fn(&str) -> Box<dyn Handleable>;
 

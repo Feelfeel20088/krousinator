@@ -1,11 +1,11 @@
 #[macro_export]
 macro_rules! register_handler {
-    ($ty:ty, $name:expr) => {
+    ($struct:ty) => {
         inventory::submit! {
             $crate::registry::entry::HandlerMeta {
-                name: $name,
+                name: stringify!($struct),
                 constructor: |json| {
-                    let model: $ty = serde_json::from_str(json).expect("Invalid JSON");
+                    let model: $struct = serde_json::from_str(json).expect("Invalid JSON");
                     Box::new(model)
                 }
             }

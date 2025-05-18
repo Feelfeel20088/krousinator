@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use super::send_model_traits::{Serd, Producer};
+use super::send_model_traits::Producer;
 use arboard::Clipboard;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -8,11 +8,11 @@ pub struct SpyModel {
 }
 
 impl Producer for SpyModel {
-    fn produce() -> Box<dyn Producer> {
+    fn produce() -> Self {
         let mut clipboard = Clipboard::new().unwrap();
         let text = clipboard.get_text().unwrap();
-        Box::new(Self { clipboard: text })
+        Self { clipboard: text }
+        
     }
 }
 
-impl Serd for SpyModel {}
