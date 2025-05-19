@@ -33,12 +33,16 @@ impl KrousinatorInterface {
         KrousinatorInterface {sender: tx}
     }
 
-    pub async fn send<T>(&self, send_object: &T)
+    pub fn send<T>(&self, send_object: T) 
         where
-            T: Producer + serde::Serialize,
-    {
-        let payload = serde_json::to_string(send_object).unwrap_or_default();
-        let _ = self.sender.send(payload).await;
+            T: Producer + serde::Serialize + std::marker::Send + 'static,
+    {   
+        let sender_clone = self.sender.clone();
+        tokio::spawn(async move {
+            let payload = serde_json::to_string(&send_object).unwrap_or_default();
+            let _ = sender_clone.send(payload).await;
+        });
+
     }
 
 }

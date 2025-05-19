@@ -14,10 +14,7 @@ pub struct SystemInfoReq {
 impl Handleable for SystemInfoReq {
     fn handle(&self, ctx: &mut KrousinatorInterface) {
         let send_system_info_object = SystemInfoSend::produce();
-        let ctx_clone = ctx.clone();
-        tokio::spawn(async move {
-            ctx_clone.send(&send_system_info_object).await;
-        });
+        ctx.send(send_system_info_object);
         println!("sent paylaod!");
 
 
