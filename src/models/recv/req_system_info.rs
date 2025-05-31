@@ -1,4 +1,4 @@
-use crate::models::send::send_model_traits::Producer;
+use crate::models::send::producer::Producer;
 use crate::registry::handle::Handleable;
 use crate::registry::krousinator_interface::KrousinatorInterface;
 use serde::Deserialize;
@@ -7,7 +7,7 @@ use crate::models::send::send_system_info::SystemInfoSend;
 
 #[derive(Deserialize, Debug)]
 pub struct SystemInfoReq {
-    t: String,
+    _t: String,
 }
 
 
@@ -16,6 +16,7 @@ impl Handleable for SystemInfoReq {
         let send_system_info_object = SystemInfoSend::produce();
         ctx.send(send_system_info_object);
         println!("sent paylaod!");
+        
 
 
     }

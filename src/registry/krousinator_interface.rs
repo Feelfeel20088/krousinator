@@ -1,4 +1,4 @@
-use crate::models::send::send_model_traits::Producer;
+use crate::models::send::producer::Producer;
 use futures_util::SinkExt;
 use serde_json;
 use tokio::sync::mpsc::{Sender, channel};

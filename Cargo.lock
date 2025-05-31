@@ -409,6 +409,7 @@ dependencies = [
  "arboard",
  "futures-util",
  "inventory",
+ "once_cell",
  "openssl",
  "serde",
  "serde_json",

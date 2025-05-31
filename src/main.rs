@@ -72,20 +72,22 @@ async fn main() {
     // let (tx, mut rx) = mpsc::channel(32);
     // Establish connection
 
-    let (ws_stream, _) = connect_async("wss://ws.postman-echo.com/raw").await.expect("ws://localhost:8080");
+    let (ws_stream, _) = connect_async("wss://ws.postman-echo.com/raw").await.expect("uh oh");
 
     println!("✅ Connected!");
     let (mut write, mut read) = ws_stream.split();
     
     for i in 0..10 {
-        write.send("{\"t\":\"SystemInfoReq\"}".into()).await.unwrap();
-        println!("send payload");
+        write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
+        write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"echo cool {}\"}}", i).into()).await.unwrap();
     }
 
     let mut krous: KrousinatorInterface = KrousinatorInterface::new(write);
 
 
     // main ingress loop
+
+
     tokio::spawn(async move {
         loop {
             match read.next().await {
@@ -111,10 +113,10 @@ async fn main() {
 
                     println!("{}", raw_text);
         
-                    let message_type = match json.get("t").and_then(|v| v.as_str()) {
+                    let message_type = match json.get("_t").and_then(|v| v.as_str()) {
                         Some(t) => t,
                         None => {
-                            println!("No 't' field found in message. Skipping.");
+                            println!("No '_t' field found in message. Skipping.");
                             continue;
                         }
                     };

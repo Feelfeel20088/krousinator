@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use super::send_model_traits::Producer;
+use super::producer::Producer;
 
 use std::fs;
 use sysinfo::{
