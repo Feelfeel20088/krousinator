@@ -1,4 +1,3 @@
-use crate::models::send::producer::Producer;
 use futures_util::SinkExt;
 use serde_json;
 use tokio::sync::mpsc::{Sender, channel};
@@ -8,12 +7,15 @@ type WebsocketWriter = futures_util::stream::SplitSink<tokio_tungstenite::WebSoc
 
 pub struct KrousinatorInterface {
     sender: Sender<String>,
+    uuid: String
 }
 
 impl Clone for KrousinatorInterface {
     fn clone(&self) -> Self {
         KrousinatorInterface {
             sender: self.sender.clone(),
+            uuid: self.uuid.clone()
+
         }
     }
 }
@@ -30,12 +32,12 @@ impl KrousinatorInterface {
             }
         });
 
-        KrousinatorInterface {sender: tx}
+        KrousinatorInterface {sender: tx, uuid: "".to_string()}
     }
 
     pub fn send<T>(&self, send_object: T) 
         where
-            T: Producer + serde::Serialize + std::marker::Send + 'static,
+            T: serde::Serialize + std::marker::Send + 'static,
     {   
         let sender_clone = self.sender.clone();
         tokio::spawn(async move {
@@ -43,6 +45,14 @@ impl KrousinatorInterface {
             let _ = sender_clone.send(payload).await;
         });
 
+    }
+
+    pub fn set_uuid(&mut self, id: String) {
+        self.uuid = id;
+    }
+
+    pub fn get_uuid(&self) -> String {
+        self.uuid.clone()
     }
 
 }

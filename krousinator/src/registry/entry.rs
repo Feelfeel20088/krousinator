@@ -1,6 +1,6 @@
 use crate::registry::handle::Handleable;
 
-pub type DynHandlerConstructor = fn(&str) -> Box<dyn Handleable>;
+pub type DynHandlerConstructor = fn(&str) -> Result<Box<dyn Handleable + Send + Sync>, serde_json::Error>;
 
 // name of struct is type
 pub struct HandlerMeta {

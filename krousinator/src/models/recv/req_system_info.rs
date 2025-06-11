@@ -1,71 +1,18 @@
-use serde::{Serialize, Deserialize};
-use super::producer::Producer;
-
-use std::fs;
-use sysinfo::{
-    Disks, Networks, System,
+use crate::{
+    registry::{
+        handle::Handleable,
+        krousinator_interface::KrousinatorInterface,
+    },
 };
-use whoami;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use krous_macros::register_handler;
+use sysinfo::{Disks, Networks, System};
+use tokio::fs;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SystemInfoSend {
-    // Basic System Info
-    pub hostname: String,
-    pub os_name: String,
-    pub os_version: String,
-    pub os_architecture: String,  // e.g. x86_64, ARM
-    pub kernel_version: String,
-    pub uptime_seconds: u64,
-
-    // CPU Info
-    pub cpu_vendor: String,
-    pub cpu_brand: String,
-    pub cpu_physical_cores: usize,
-    pub cpu_logical_cores: usize,
-    pub cpu_frequency_mhz: u64,
-    pub cpu_features: Vec<String>,
-
-    // Memory Info
-    pub total_memory_bytes: u64,
-    pub available_memory_bytes: u64,
-    pub total_swap_bytes: u64,
-    pub available_swap_bytes: u64,
-
-    // Disk Info
-    pub disks: Vec<DiskInfo>,
-
-    // Network Info
-    pub network_interfaces: Vec<NetworkInterfaceInfo>,
-
-    // Graphics
-    pub gpu_vendor: Option<String>,
-    pub gpu_model: Option<String>,
-
-    // Unique Identifiers
-    pub machine_id: Option<String>,     // OS-specific machine ID or UUID
-    pub bios_serial_number: Option<String>,
-    pub motherboard_serial_number: Option<String>,
-    pub system_uuid: Option<String>,
-
-    // User and Environment Info
-    pub username: Option<String>,
-    pub shell: Option<String>,
-    pub user_langs: Option<Vec<String>>,
-    
-    // Timezone
-    pub timezone: Option<String>,
-
-    // Misc
-    pub is_virtual_machine: bool,
-    pub battery_percentage: Option<u8>,  // if laptop
-    pub is_laptop: bool,
-    
-    // Environment variables (optional - could be big)
-    // pub environment_vars: Option<std::collections::HashMap<String, String>>,
-}
 
 // Supporting structs
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct DiskInfo {
     pub name: String,
     pub mount_point: String,
@@ -74,7 +21,7 @@ pub struct DiskInfo {
     pub available_space_bytes: u64,
     pub is_removable: bool,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct NetworkInterfaceInfo {
     pub name: String,
     pub mac_address: String,
@@ -84,11 +31,61 @@ pub struct NetworkInterfaceInfo {
     pub ip_addresses: Vec<String>,  // IPv4 and IPv6
 }
 
+#[derive(Serialize, Debug)]
+pub struct SystemInfoSend {
+    pub hostname: String,
+    pub os_name: String,
+    pub os_version: String,
+    pub os_architecture: String,
+    pub kernel_version: String,
+    pub uptime_seconds: u64,
 
+    pub cpu_vendor: String,
+    pub cpu_brand: String,
+    pub cpu_physical_cores: usize,
+    pub cpu_logical_cores: usize,
+    pub cpu_frequency_mhz: u64,
+    pub cpu_features: Vec<String>,
 
+    pub total_memory_bytes: u64,
+    pub available_memory_bytes: u64,
+    pub total_swap_bytes: u64,
+    pub available_swap_bytes: u64,
 
-impl Producer for SystemInfoSend {
-    fn produce() -> Self {
+    pub disks: Vec<DiskInfo>,
+    pub network_interfaces: Vec<NetworkInterfaceInfo>,
+
+    pub gpu_vendor: Option<String>,
+    pub gpu_model: Option<String>,
+
+    pub machine_id: Option<String>,
+    pub bios_serial_number: Option<String>,
+    pub motherboard_serial_number: Option<String>,
+    pub system_uuid: Option<String>,
+
+    pub username: Option<String>,
+    pub shell: Option<String>,
+    pub user_langs: Option<Vec<String>>,
+    pub timezone: Option<String>,
+
+    pub is_virtual_machine: bool,
+    pub battery_percentage: Option<u8>,
+    pub is_laptop: bool,
+
+    // Uncomment if you want to send environment vars, be cautious about sensitive info
+    // pub environment_vars: Option<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Deserialize, Debug)]
+#[register_handler]
+pub struct SystemInfoReq {
+    _t: String,
+}
+
+// TODO get all the feilds i was to lazy to get
+#[async_trait]
+impl Handleable for SystemInfoReq {
+    async fn handle(&self, ctx: &mut KrousinatorInterface) {
         let mut sys = System::new_all();
         sys.refresh_all();
 
@@ -155,7 +152,7 @@ impl Producer for SystemInfoSend {
         let gpu_vendor = None;  // Advanced: parse lspci (Linux), DirectX (Windows), etc.
         let gpu_model = None;
 
-        let machine_id = fs::read_to_string("/etc/machine-id").ok().map(|s| s.trim().to_string());
+        let machine_id = fs::read_to_string("/etc/machine-id").await.ok().map(|s| s.trim().to_string());
         let bios_serial_number = None;  // Advanced: use dmidecode or WMI
         let motherboard_serial_number = None;
         let system_uuid = None;
@@ -165,9 +162,9 @@ impl Producer for SystemInfoSend {
         let user_langs: Option<Vec<String>> = Some(whoami::langs().unwrap().map(|lang| lang.country().to_string()).collect());
         let timezone = std::env::var("TZ").ok();
 
-        let is_virtual_machine = false; // Advanced: check CPU vendor strings, DMI
-        let battery_percentage = None; // Use `battery` crate later
-        let is_laptop = false; // Advanced: battery presence check
+        let is_virtual_machine = false; 
+        let battery_percentage = None; 
+        let is_laptop = false; 
 
         // let environment_vars = Some(std::env::vars().collect::<HashMap<String, String>>());
 
@@ -214,9 +211,9 @@ impl Producer for SystemInfoSend {
             // environment_vars,
         };
 
-        result
-
+        ctx.send(result);
         
+
+
     }
 }
-

