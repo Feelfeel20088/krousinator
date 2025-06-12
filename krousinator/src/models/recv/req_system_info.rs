@@ -1,7 +1,7 @@
-use crate::{
+use common::{
     registry::{
-        handle::Handleable,
-        krousinator_interface::KrousinatorInterface,
+        Handleable,
+        KrousinatorInterface,
     },
 };
 use async_trait::async_trait;

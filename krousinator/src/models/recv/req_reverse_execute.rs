@@ -1,5 +1,5 @@
 use tokio::{
-    process::{self, Child, Command},
+    process::{Child, Command},
     sync::Mutex,
 };
 use std::process::Stdio;
@@ -8,7 +8,7 @@ use krous_macros::register_handler;
 use once_cell::sync::Lazy;
 use serde::{Serialize, Deserialize};
 
-use crate::{
+use common::{
     registry::{
         handle::Handleable,
         krousinator_interface::KrousinatorInterface,
@@ -84,7 +84,7 @@ impl Handleable for ReverseExecuteReq {
         } else {
             (1, output.trim()) // fallback
         };
-        
+
         ctx.send(ReverseExecuteSend {
             _t: "ReverseExecuteSend",
             successful: exit_code == 0,

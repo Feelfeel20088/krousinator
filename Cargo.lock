@@ -148,6 +148,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "inventory",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -431,6 +444,7 @@ name = "krous_macros"
 version = "0.1.0"
 dependencies = [
  "colored",
+ "common",
  "proc-macro2",
  "quote",
  "syn",
@@ -443,6 +457,7 @@ dependencies = [
  "arboard",
  "async-trait",
  "colored",
+ "common",
  "futures-util",
  "inventory",
  "krous_macros",

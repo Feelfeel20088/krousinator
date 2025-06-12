@@ -1,8 +1,6 @@
-
-mod registry;
 mod models;
-use crate::registry::{krousinator_interface::KrousinatorInterface, handler_registry::HandlerRegistry};
-use crate::registry::entry::HandlerMeta;
+use common::registry::{KrousinatorInterface, HandlerRegistry, HandlerMeta};
+
 // serd
 use serde_json::Value;
 
@@ -80,7 +78,7 @@ async fn main() {
     
     for i in 0..10 {
         write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
-        write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"pkill firefox\",\"payload_response\":true}}").into()).await.unwrap();
+        write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"cat /etc/nixos/background/e.png\",\"payload_response\":true}}").into()).await.unwrap();
     }
 
     let mut krous: KrousinatorInterface = KrousinatorInterface::new(write);

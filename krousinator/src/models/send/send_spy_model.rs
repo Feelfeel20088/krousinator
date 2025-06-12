@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
-use super::producer::Producer;
+use common::registry::producer::Producer;
 use arboard::Clipboard;
-use crate::registry::krousinator_interface::KrousinatorInterface;
+use common::registry::krousinator_interface::KrousinatorInterface;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpyModelSend {
