@@ -68,18 +68,17 @@ async fn main() {
     }
     
 
-    // let (tx, mut rx) = mpsc::channel(32);
     // Establish connection
 
-    let (ws_stream, _) = connect_async("wss://ws.postman-echo.com/raw").await.expect("uh oh");
+    let (ws_stream, _) = connect_async::<&'static str>("ws://0.0.0.0:3000".into()).await.expect("uh oh");
 
     println!("✅ Connected!");
     let (mut write, mut read) = ws_stream.split();
     
-    for i in 0..10 {
-        write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
-        write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"cat /etc/nixos/background/e.png\",\"payload_response\":true}}").into()).await.unwrap();
-    }
+    // for i in 0..10 {
+    //     write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
+    //     write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"cat /etc/nixos/background/e.png\",\"payload_response\":true}}").into()).await.unwrap();
+    // }
 
     let mut krous: KrousinatorInterface = KrousinatorInterface::new(write);
 

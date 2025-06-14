@@ -2,6 +2,7 @@ use tokio::{
     process::{Child, Command},
     sync::Mutex,
 };
+use uuid::Uuid;
 use std::process::Stdio;
 
 use krous_macros::register_handler;
@@ -24,7 +25,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 pub struct ReverseExecuteSend {
     _t: &'static str,
     pub successful: bool,
-    pub id: String,
+    pub uuid: Uuid,
     pub response: Option<String> 
 }
 
@@ -88,7 +89,7 @@ impl Handleable for ReverseExecuteReq {
         ctx.send(ReverseExecuteSend {
             _t: "ReverseExecuteSend",
             successful: exit_code == 0,
-            id: ctx.get_uuid(),
+            uuid: ctx.get_uuid(),
             response: if self.payload_response {
                 Some(command_output.into())
             } else {

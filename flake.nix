@@ -17,11 +17,13 @@
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
+            rustc
+            cargo
             rust-bin.stable.latest.default
             pkg-config
             openssl
           ];
-
+          RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
           RUST_BACKTRACE = "1";
         };
       });

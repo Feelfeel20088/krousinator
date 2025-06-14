@@ -1,13 +1,14 @@
 use futures_util::SinkExt;
 use serde_json;
 use tokio::sync::mpsc::{Sender, channel};
+use uuid::Uuid;
 
 type WebsocketWriter = futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, tokio_tungstenite::tungstenite::Message>;
 
 
 pub struct KrousinatorInterface {
     sender: Sender<String>,
-    uuid: String
+    uuid: Uuid
 }
 
 impl Clone for KrousinatorInterface {
@@ -32,7 +33,7 @@ impl KrousinatorInterface {
             }
         });
 
-        KrousinatorInterface {sender: tx, uuid: "".to_string()}
+        KrousinatorInterface {sender: tx, uuid: Uuid::nil()}
     }
 
     pub fn send<T>(&self, send_object: T) 
@@ -47,11 +48,11 @@ impl KrousinatorInterface {
 
     }
 
-    pub fn set_uuid(&mut self, id: String) {
+    pub fn set_uuid(&mut self, id: Uuid) {
         self.uuid = id;
     }
 
-    pub fn get_uuid(&self) -> String {
+    pub fn get_uuid(&self) -> Uuid {
         self.uuid.clone()
     }
 
