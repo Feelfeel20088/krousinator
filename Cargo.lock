@@ -591,9 +591,12 @@ dependencies = [
 name = "kroushive"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum",
+ "colored",
  "common",
  "futures-util",
+ "inventory",
  "krous_macros",
  "openssl",
  "serde",

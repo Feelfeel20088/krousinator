@@ -1,12 +1,12 @@
-use krous_macros::register_handler;
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 use async_trait::async_trait;
 use uuid::Uuid;
+use krous_macros::register_handler;
 
 use common::{
     registry::{
-        handle::Handleable,
-        krousinator_interface::KrousinatorInterface,
+        Handleable,
+        Context,
     },
 };
 
@@ -16,9 +16,10 @@ use common::{
 
 #[derive(Deserialize, Debug)]
 #[register_handler]
-pub struct ReverseExecuteReq {
+pub struct AuthReqRecv {
     _t: String,
     challenge: String,
+    manual_request_id: Option<Uuid>
 }
 
 
@@ -26,9 +27,9 @@ pub struct ReverseExecuteReq {
 
 
 #[async_trait]
-impl Handleable for ReverseExecuteReq {
+impl Handleable for AuthReqRecv {
     
-    async fn handle(&self, ctx: &mut KrousinatorInterface) {
+    async fn handle(&self, ctx: &mut Context) {
         let mut challenge = self.challenge.clone();
         challenge = challenge + "kuvas"; // 5
         challenge.chars().nth(1);

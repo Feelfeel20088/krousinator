@@ -1,13 +1,16 @@
 mod models;
-use common::registry::{KrousinatorInterface, HandlerRegistry, HandlerMeta};
-
+use common::registry::{
+    HandlerRegistry,
+    HandlerMeta,
+    Context
+};
 // serd
 use serde_json::Value;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 // ws
 use tokio_tungstenite::connect_async;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 
 // fs
 use tokio::fs::File;
@@ -73,14 +76,16 @@ async fn main() {
     let (ws_stream, _) = connect_async::<&'static str>("ws://0.0.0.0:3000".into()).await.expect("uh oh");
 
     println!("✅ Connected!");
-    let (mut write, mut read) = ws_stream.split();
+    let (write, mut read) = ws_stream.split();
+    
+
     
     // for i in 0..10 {
     //     write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
     //     write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"cat /etc/nixos/background/e.png\",\"payload_response\":true}}").into()).await.unwrap();
     // }
 
-    let mut krous: KrousinatorInterface = KrousinatorInterface::new(write);
+    let mut context = Context::new(write);
 
 
     // main ingress loop
@@ -120,7 +125,7 @@ async fn main() {
         
                     match reg.get(message_type, &raw_text) {
                         Some(handler) => match handler {
-                            Ok(handler) => handler.handle(&mut krous).await,
+                            Ok(handler) => handler.handle(&mut context).await,
                             Err(_err) => continue
                         }
                         None => {

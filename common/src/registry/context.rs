@@ -6,14 +6,14 @@ use uuid::Uuid;
 type WebsocketWriter = futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, tokio_tungstenite::tungstenite::Message>;
 
 
-pub struct KrousinatorInterface {
+pub struct Context {
     sender: Sender<String>,
     uuid: Uuid
 }
 
-impl Clone for KrousinatorInterface {
+impl Clone for Context {
     fn clone(&self) -> Self {
-        KrousinatorInterface {
+        Context {
             sender: self.sender.clone(),
             uuid: self.uuid.clone()
 
@@ -22,7 +22,7 @@ impl Clone for KrousinatorInterface {
 }
 
 
-impl KrousinatorInterface {
+impl Context {
     pub fn new(mut write: WebsocketWriter) -> Self {
 
         let (tx, mut rx) = channel::<String>(100);
@@ -33,7 +33,7 @@ impl KrousinatorInterface {
             }
         });
 
-        KrousinatorInterface {sender: tx, uuid: Uuid::nil()}
+        Context {sender: tx, uuid: Uuid::nil()}
     }
 
     pub fn send<T>(&self, send_object: T) 
@@ -57,3 +57,6 @@ impl KrousinatorInterface {
     }
 
 }
+
+pub struct HiveContext {}
+

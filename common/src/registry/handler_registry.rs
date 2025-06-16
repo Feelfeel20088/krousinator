@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::registry::handle::Handleable;
+use crate::registry::Handleable;
 
 pub type DynHandlerConstructor = fn(&str) -> Result<Box<dyn Handleable + Send + Sync>, serde_json::Error>;
 

@@ -1,7 +1,7 @@
 use common::{
     registry::{
         Handleable,
-        KrousinatorInterface,
+        Context,
     },
 };
 use async_trait::async_trait;
@@ -9,83 +9,86 @@ use serde::{Deserialize, Serialize};
 use krous_macros::register_handler;
 use sysinfo::{Disks, Networks, System};
 use tokio::fs;
+use uuid::Uuid;
 
 
 // Supporting structs
 #[derive(Debug, Serialize)]
 pub struct DiskInfo {
-    pub name: String,
-    pub mount_point: String,
-    pub file_system: String,
-    pub total_space_bytes: u64,
-    pub available_space_bytes: u64,
-    pub is_removable: bool,
+    name: String,
+    mount_point: String,
+    file_system: String,
+    total_space_bytes: u64,
+    available_space_bytes: u64,
+    is_removable: bool,
 }
 #[derive(Debug, Serialize)]
 pub struct NetworkInterfaceInfo {
-    pub name: String,
-    pub mac_address: String,
-    pub precent_of_inbound_packets_lost: u64,
-    pub precent_of_outbound_packets_lost: u64,
-    pub mtu: u64,
-    pub ip_addresses: Vec<String>,  // IPv4 and IPv6
+    name: String,
+    mac_address: String,
+    precent_of_inbound_packets_lost: u64,
+    precent_of_outbound_packets_lost: u64,
+    mtu: u64,
+    ip_addresses: Vec<String>,  // IPv4 and IPv6
 }
 
 #[derive(Serialize, Debug)]
 pub struct SystemInfoSend {
-    pub hostname: String,
-    pub os_name: String,
-    pub os_version: String,
-    pub os_architecture: String,
-    pub kernel_version: String,
-    pub uptime_seconds: u64,
+    manual_request_id: Option<Uuid>, 
+    hostname: String,
+    os_name: String,
+    os_version: String,
+    os_architecture: String,
+    kernel_version: String,
+    uptime_seconds: u64,
 
-    pub cpu_vendor: String,
-    pub cpu_brand: String,
-    pub cpu_physical_cores: usize,
-    pub cpu_logical_cores: usize,
-    pub cpu_frequency_mhz: u64,
-    pub cpu_features: Vec<String>,
+    cpu_vendor: String,
+    cpu_brand: String,
+    cpu_physical_cores: usize,
+    cpu_logical_cores: usize,
+    cpu_frequency_mhz: u64,
+    cpu_features: Vec<String>,
 
-    pub total_memory_bytes: u64,
-    pub available_memory_bytes: u64,
-    pub total_swap_bytes: u64,
-    pub available_swap_bytes: u64,
+    total_memory_bytes: u64,
+    available_memory_bytes: u64,
+    total_swap_bytes: u64,
+    available_swap_bytes: u64,
 
-    pub disks: Vec<DiskInfo>,
-    pub network_interfaces: Vec<NetworkInterfaceInfo>,
+    disks: Vec<DiskInfo>,
+    network_interfaces: Vec<NetworkInterfaceInfo>,
 
-    pub gpu_vendor: Option<String>,
-    pub gpu_model: Option<String>,
+    gpu_vendor: Option<String>,
+    gpu_model: Option<String>,
 
-    pub machine_id: Option<String>,
-    pub bios_serial_number: Option<String>,
-    pub motherboard_serial_number: Option<String>,
-    pub system_uuid: Option<String>,
+    machine_id: Option<String>,
+    bios_serial_number: Option<String>,
+    motherboard_serial_number: Option<String>,
+    system_uuid: Option<String>,
 
-    pub username: Option<String>,
-    pub shell: Option<String>,
-    pub user_langs: Option<Vec<String>>,
-    pub timezone: Option<String>,
+    username: Option<String>,
+    shell: Option<String>,
+    user_langs: Option<Vec<String>>,
+    timezone: Option<String>,
 
-    pub is_virtual_machine: bool,
-    pub battery_percentage: Option<u8>,
-    pub is_laptop: bool,
+    is_virtual_machine: bool,
+    battery_percentage: Option<u8>,
+    is_laptop: bool,
 
-    // Uncomment if you want to send environment vars, be cautious about sensitive info
+    
     // pub environment_vars: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Debug)]
 #[register_handler]
-pub struct SystemInfoReq {
+pub struct SystemInfoRecv {
     _t: String,
+    manual_request_id: Option<Uuid>
 }
 
 // TODO get all the feilds i was to lazy to get
 #[async_trait]
-impl Handleable for SystemInfoReq {
-    async fn handle(&self, ctx: &mut KrousinatorInterface) {
+impl Handleable for SystemInfoRecv {
+    async fn handle(&self, ctx: &mut Context) {
         let mut sys = System::new_all();
         sys.refresh_all();
 
@@ -169,6 +172,7 @@ impl Handleable for SystemInfoReq {
         // let environment_vars = Some(std::env::vars().collect::<HashMap<String, String>>());
 
         let result = SystemInfoSend {
+            manual_request_id: self.manual_request_id,
             hostname,
             os_name,
             os_version,
