@@ -1,7 +1,20 @@
+use std::{process::Command, path::PathBuf};
+use ptrace_inject::Injector;
 
-fn main() -> () {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("doing the thing");
+    let library = PathBuf::from("/home/felix/projects/krousinator/target/debug/libkrousinator.so");
+    
+    
+    // Spawn a new process and inject the library into it.
+    let mut target: Command = Command::new("/home/felix/projects/krousinator/target/debug/dummy"); 
+    
+    target.arg("1000");
+
+    Injector::spawn(target)?.inject(&library)?;
 
 
+    Ok(())
 
 
 }
@@ -9,35 +22,3 @@ fn main() -> () {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // println!("doing the thing");
-    // let library = PathBuf::from("/home/felix/projects/krousinator/target/debug/libkrousinator.so");
-
-    // // Or attach to an existing process.
-    // let proc = Process::get(8684).expect("to find target process");
-    // Injector::attach(proc).expect("something happend while attaching the proccese").inject(&library).expect("inject failed");

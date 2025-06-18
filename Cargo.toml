@@ -3,6 +3,7 @@ members = [
     "krousinator",
     "kroushive",
     "installer",
-    "common"
+    "common",
+    "dummy"
     
 ]
