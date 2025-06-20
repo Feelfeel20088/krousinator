@@ -1,24 +1,23 @@
-use std::{process::Command, path::PathBuf};
+use std::process::Command;
+use std::path::PathBuf;
 use ptrace_inject::Injector;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("doing the thing");
+    println!("Starting injection...");
+
+
     let library = PathBuf::from("/home/felix/projects/krousinator/target/debug/libkrousinator.so");
-    
-    
-    // Spawn a new process and inject the library into it.
-    let mut target: Command = Command::new("/home/felix/projects/krousinator/target/debug/dummy"); 
-    
+
+  
+    let mut target = Command::new("/home/felix/projects/krousinator/target/debug/dummy");
     target.arg("1000");
 
-    Injector::spawn(target)?.inject(&library)?;
+ 
+    let mut injector = Injector::spawn(target)?;
 
 
+    injector.inject(&library)?;
+
+    println!("Injection complete.");
     Ok(())
-
-
 }
-
-
-
-
