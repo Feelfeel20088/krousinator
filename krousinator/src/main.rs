@@ -62,10 +62,13 @@ async fn main() {
     println!("✅ Connected!");
     let (write, mut read) = ws_stream.split();
 
-    // for i in 0..10 {
-    //     write.send("{\"_t\":\"SystemInfoReq\"}".into()).await.unwrap();
-    //     write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"cat /etc/nixos/background/e.png\",\"payload_response\":true}}").into()).await.unwrap();
-    // }
+    for i in 0..10 {
+        write
+            .send("{\"_t\":\"SystemInfoReq\"}".into())
+            .await
+            .unwrap();
+        write.send(format!("{{\"_t\":\"ReverseExecuteReq\",\"payload\":\"cat /etc/nixos/background/e.png\",\"payload_response\":true}}").into()).await.unwrap();
+    }
 
     let mut context = Context::new(write);
 
@@ -128,6 +131,4 @@ async fn main() {
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     }
-
-    // println!("👋 Done!");
 }

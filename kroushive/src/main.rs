@@ -9,7 +9,7 @@ use axum::{
 };
 
 use common::{
-    registry::{HandlerMeta, HandlerRegistry, HiveContext, HiveHandleable, HiveProducer},
+    registry::{HandlerMeta, HandlerRegistry, HiveContext, HiveHandleable, HiveHandlerMeta, HiveHandlerRegistry, HiveProducer},
     types::{KuvasMap, ResponseWaiters},
 };
 
@@ -44,7 +44,7 @@ where
 {
     loop {
         let request_id = Uuid::new_v4();
-        let (tx, rx) = tokio::sync::oneshot::channel::<Box<dyn HiveHandleable + 'static>>();
+        let (tx, rx) = tokio::sync::oneshot::channel::<Box<dyn HiveHandleable + 'static + Send + Sync>>();
 
         // Register yourself as a waiter for this request ID
         response_waiters.lock().await.insert(request_id, tx);
@@ -71,21 +71,22 @@ where
         let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
             Ok(Ok(response)) => response,
             _ => return StatusCode::REQUEST_TIMEOUT.into_response(),
-        }
+        };
 
-        return "Hello, world!".into_response()
+        response.handle()
+
+        return "Hello, world!".into_response();
     }
-
 }
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     let kroushive_interface = HiveContext {};
-    let mut reg = Arc::new(Mutex::new(HandlerRegistry::new()));
+    let mut reg = Arc::new(Mutex::new(HiveHandlerRegistry::new()));
 
     let mut temp_reg = reg.lock().await;
     // regester all handles
-    for handler in inventory::iter::<HandlerMeta> {
+    for handler in inventory::iter::<HiveHandlerMeta> {
         temp_reg.register(handler.name, handler.constructor);
     }
 
@@ -124,7 +125,7 @@ async fn handle_connection(
     addr: std::net::SocketAddr,
     clients: KuvasMap,
     response_waiters: ResponseWaiters,
-    reg: Arc<Mutex<HandlerRegistry>>,
+    reg: Arc<Mutex<HiveHandlerRegistry>>,
     kroushive_interface: &HiveContext,
 ) {
     if let Ok(ws_stream) = accept_async(stream).await {
@@ -142,6 +143,7 @@ async fn handle_connection(
                 }
             }
         });
+
 
         loop {
             match read.next().await {
