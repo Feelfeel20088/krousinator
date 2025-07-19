@@ -9,7 +9,10 @@ use axum::{
 };
 
 use common::{
-    registry::{HandlerMeta, HandlerRegistry, HiveContext, HiveHandleable, HiveHandlerMeta, HiveHandlerRegistry, HiveProducer},
+    registry::{
+        HandlerMeta, HandlerRegistry, HiveContext, HiveHandleable, HiveHandlerMeta,
+        HiveHandlerRegistry, HiveProducer,
+    },
     types::{KuvasMap, ResponseWaiters},
 };
 
@@ -18,7 +21,7 @@ use futures_util::{
     SinkExt, Stream, StreamExt,
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use tokio::{
@@ -31,32 +34,32 @@ use tokio_tungstenite::{accept_async, tungstenite::protocol::Message, WebSocketS
 
 use uuid::Uuid;
 
+use crate::models::send;
+
 mod models;
 
 async fn send_request_to_krousinator<P>(
-    Path(krousinator_id): Path<Uuid>,
-    State(client_map): State<KuvasMap>,
-    State(response_waiters): State<ResponseWaiters>,
-    Json(payload): Json<P>,
-) -> Response
+    krousinator_id: Uuid,
+    client_map: KuvasMap,
+    response_waiters: ResponseWaiters,
+    payload: P,
+) -> Result<Box<dyn HiveHandleable + Send + Sync>, Response>
 where
     P: HiveProducer + Serialize + Send + Sync + 'static,
 {
     loop {
         let request_id = Uuid::new_v4();
-        let (tx, rx) = tokio::sync::oneshot::channel::<Box<dyn HiveHandleable + 'static + Send + Sync>>();
+        let (tx, rx) =
+            tokio::sync::oneshot::channel::<Box<dyn HiveHandleable + 'static + Send + Sync>>();
 
         // Register yourself as a waiter for this request ID
         response_waiters.lock().await.insert(request_id, tx);
 
-        // Send the request
-        // let request_model = RequestModel {
-        //     request_id: Some(request_id),
-        //     // ...other fields
-        // };
+        // payload is a struct produced in a route function
         let serialized = serde_json::to_string(&payload).unwrap();
         let msg = Message::Text(serialized.into());
 
+        // send the model to the correct krousinator
         if let Some(krousinator_tx) = client_map.lock().await.get(&krousinator_id) {
             krousinator_tx.send(msg).unwrap();
         } else {
@@ -70,12 +73,10 @@ where
         // Wait for response (timeout optional)
         let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
             Ok(Ok(response)) => response,
-            _ => return StatusCode::REQUEST_TIMEOUT.into_response(),
+            _ => return Err(StatusCode::REQUEST_TIMEOUT.into_response()),
         };
 
-        response.handle()
-
-        return "Hello, world!".into_response();
+        return Ok(response);
     }
 }
 
@@ -143,7 +144,6 @@ async fn handle_connection(
                 }
             }
         });
-
 
         loop {
             match read.next().await {

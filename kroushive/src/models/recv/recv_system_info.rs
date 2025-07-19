@@ -67,8 +67,17 @@ pub struct SystemInfoRecv {
     is_laptop: bool,
     // pub environment_vars: Option<std::collections::HashMap<String, String>>,
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReverseExecuteSend {
+    _t: String,
+    payload: String,        // full command
+    payload_response: bool, // to send back the shells output or not
+    manual_request_id: Option<Uuid>,
+}
 
 #[async_trait]
 impl HiveHandleable for SystemInfoRecv {
-    async fn handle(&self, ctx: &HiveContext) {}
+    async fn handle(&self, ctx: &HiveContext) {
+        // store in database somewhere
+    }
 }
