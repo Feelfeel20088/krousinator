@@ -25,9 +25,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 pub struct ReverseExecuteSend {
     _t: String,
     manual_request_id: Option<Uuid>,
-    pub successful: bool,
-    pub uuid: Uuid,
-    pub response: Option<String> 
+    successful: bool,
+    uuid: Uuid,
+    response: Option<String> 
 }
 
 #[derive(Deserialize, Debug)]

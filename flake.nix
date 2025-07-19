@@ -1,30 +1,41 @@
 {
-  description = "Dev shell with latest stable Rust";
+  description = "Krousinator dev shell";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "nixpkgs/nixos-24.11";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = { nixpkgs, utils, rust-overlay, ... }:
+    utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ rust-overlay.overlays.default ];
-        };
-      in {
-        devShells.default = pkgs.mkShell {
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs { inherit system overlays; };
+        rust-bin = pkgs.rust-bin;
+      in
+      {
+        formatter = pkgs.nixpkgs-fmt;
+
+        devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
-            rustc
-            cargo
-            rust-bin.stable.latest.default
             pkg-config
             openssl
+
+            (rust-bin.stable.latest.default.override {
+              extensions = [
+                "clippy"
+                "rust-src"
+                "rust-analyzer"
+              ];
+              targets = [
+                "thumbv6m-none-eabi"
+                "x86_64-unknown-linux-gnu"
+              ];
+            })
           ];
-          RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
-          RUST_BACKTRACE = "1";
         };
-      });
+      }
+    );
 }

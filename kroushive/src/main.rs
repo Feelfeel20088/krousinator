@@ -1,10 +1,10 @@
-use std::{collections::HashMap, fmt::format, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{
-    extract::{Path, State},
+    Extension,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{post},
     Json, Router,
 };
 
@@ -21,7 +21,7 @@ use futures_util::{
     SinkExt, Stream, StreamExt,
 };
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
 use tokio::{
@@ -30,22 +30,92 @@ use tokio::{
     sync::Mutex,
 };
 
-use tokio_tungstenite::{accept_async, tungstenite::protocol::Message, WebSocketStream};
+use tokio_tungstenite::{accept_async, tungstenite::protocol::Message,};
 
 use uuid::Uuid;
 
-use crate::models::send;
-
 mod models;
 
-async fn send_request_to_krousinator<P>(
+
+#[derive(Deserialize)]
+pub struct KrousHiveEnvelope<T> 
+// where HiveHandleable + Send + Sync + 'static 
+{
+    krous_id: String,
+    #[serde(flatten)]
+    model: T,
+}
+
+// macro_rules! model_route {
+//     ($router:expr, $path:literal, $sender:tym, $recv:tym) => {
+//         $router.route($path, post(build_handler::<$sender, $recv>)
+//         )
+//     };
+// }
+
+
+
+
+// currently there is no check to see the model being passed in is a valid model.
+// front end softwhere will recv something back from the krousinator like { error: model not valid }
+// although this should never happen unless someone messes up the frontend code or someone is trying to use
+// the api
+
+async fn build_handler<S, R>(
+    Json(payload): Json<KrousHiveEnvelope<S>>,
+    Extension(client_map): Extension<KuvasMap>,
+    Extension(response_waiters): Extension<ResponseWaiters>,
+    Extension(context): Extension<&HiveContext>,
+) -> Result<Json<Box<dyn HiveHandleable + Send + Sync>>, Response>
+where
+    S: Serialize + Send + Sync + 'static,
+    R: HiveHandleable + Serialize + DeserializeOwned + Send + Sync + 'static,
+{
+    // Parse the UUID, return 404 if invalid
+    let krous_uuid = match Uuid::parse_str(&payload.krous_id) {
+        Ok(uuid) => uuid,
+        Err(_) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                format!("Krousinator id {} is not a valid UUID", &payload.krous_id),
+            ).into_response());
+        }
+    };
+
+    // Serialize model to JSON string
+    let inner_json = serde_json::to_string(&payload.model).unwrap();
+
+    // Call your async function that sends request and gets a response
+    let recv_model = match send_request_to_krousinator(
+        krous_uuid,
+        client_map,
+        response_waiters,
+        inner_json,
+    )
+    .await
+    {
+        Ok(model) => model,
+        Err(err) => return Err(err),
+    };
+
+    // this will go down the stack sending and recving more 
+    // model until the orginal recv model returns the resulting struct 
+    // NOTE TO SELF. there is currently know way for models to add to themselfs like collecting 
+    // more info as it sends and recvs more models. it may be approite to return a diffrent type
+    // that each model defines as its resulting thingy 
+    recv_model.handle(&context).await;
+
+    // Return the result as JSON
+    Ok(Json(recv_model))
+}
+
+// TODO make a utility thing to store stuff like this in here
+async fn send_request_to_krousinator(
     krousinator_id: Uuid,
     client_map: KuvasMap,
     response_waiters: ResponseWaiters,
-    payload: P,
+    payload: String,
 ) -> Result<Box<dyn HiveHandleable + Send + Sync>, Response>
-where
-    P: HiveProducer + Serialize + Send + Sync + 'static,
 {
     loop {
         let request_id = Uuid::new_v4();
@@ -55,19 +125,17 @@ where
         // Register yourself as a waiter for this request ID
         response_waiters.lock().await.insert(request_id, tx);
 
-        // payload is a struct produced in a route function
-        let serialized = serde_json::to_string(&payload).unwrap();
-        let msg = Message::Text(serialized.into());
+        // payload is a allredy serded string produced in the build_handler function
+        let msg = Message::Text(payload.into());
 
         // send the model to the correct krousinator
         if let Some(krousinator_tx) = client_map.lock().await.get(&krousinator_id) {
             krousinator_tx.send(msg).unwrap();
         } else {
-            (
+            return Err((
                 StatusCode::NOT_FOUND,
                 format!("Krousinator with id {} is not found", &krousinator_id),
-            )
-                .into_response();
+            ).into_response());
         }
 
         // Wait for response (timeout optional)
@@ -79,7 +147,7 @@ where
         return Ok(response);
     }
 }
-
+#[axum::debug_handler]
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     let kroushive_interface = HiveContext {};
@@ -91,16 +159,25 @@ async fn main() -> Result<(), std::io::Error> {
         temp_reg.register(handler.name, handler.constructor);
     }
 
+    
+
     // state
     let mut map = Arc::new(Mutex::new(HashMap::new()));
     let response_waiters: ResponseWaiters = Arc::new(Mutex::new(HashMap::new()));
 
-    let app = Router::new().route(
-        "/krousinator/:id/reverse",
-        post(send_request_to_krousinator)
-            .with_state(Arc::clone(&map))
-            .with_state(Arc::clone(&response_waiters)),
-    );
+    use models::recv::recv_system_info::SystemInfoSend;
+    use models::recv::recv_system_info::SystemInfoRecv;
+    
+    // temp 
+    let app = Router::new()
+
+    .layer(Extension(map.clone()))
+    .layer(Extension(response_waiters.clone()))
+    .layer(Extension(&kroushive_interface))
+    // add your routes
+    .route("/coolpath", post(build_handler::<SystemInfoSend, SystemInfoRecv>));
+    // let app = model_route!(app, "/swarm/reverse_execute", KrousModelA);
+
 
     let webserver = TcpListener::bind("0.0.0.0:8080").await?;
     tokio::spawn(async move {
@@ -113,6 +190,7 @@ async fn main() -> Result<(), std::io::Error> {
         tokio::spawn(handle_connection(
             stream,
             addr,
+            // switch these to a one shot or store them into a globle object?
             Arc::clone(&map),
             Arc::clone(&response_waiters),
             Arc::clone(&reg),
@@ -123,7 +201,7 @@ async fn main() -> Result<(), std::io::Error> {
 
 async fn handle_connection(
     stream: TcpStream,
-    addr: std::net::SocketAddr,
+    addr: SocketAddr,
     clients: KuvasMap,
     response_waiters: ResponseWaiters,
     reg: Arc<Mutex<HiveHandlerRegistry>>,
@@ -164,7 +242,7 @@ async fn handle_connection(
                         }
                     };
 
-                    println!("{}", raw_text);
+                    println!("{}", raw_text); // debugging
 
                     let message_type = match json.get("_t").and_then(|v| v.as_str()) {
                         Some(t) => t,
@@ -200,7 +278,8 @@ async fn handle_connection(
                         }
                     }
                 }
-
+                
+                
                 Some(Err(e)) => {
                     eprintln!("WebSocket error: {}", e);
                     continue;

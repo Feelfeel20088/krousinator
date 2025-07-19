@@ -4,7 +4,7 @@ use krous_macros::register_hive_handler;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DiskInfo {
     name: String,
     mount_point: String,
@@ -13,7 +13,7 @@ pub struct DiskInfo {
     available_space_bytes: u64,
     is_removable: bool,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NetworkInterfaceInfo {
     name: String,
     mac_address: String,
@@ -23,7 +23,7 @@ pub struct NetworkInterfaceInfo {
     ip_addresses: Vec<String>, // IPv4 and IPv6
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[register_hive_handler]
 pub struct SystemInfoRecv {
     manual_request_id: Option<Uuid>,
@@ -67,17 +67,18 @@ pub struct SystemInfoRecv {
     is_laptop: bool,
     // pub environment_vars: Option<std::collections::HashMap<String, String>>,
 }
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ReverseExecuteSend {
+#[derive(Serialize, Debug)]
+pub struct SystemInfoSend {
     _t: String,
-    payload: String,        // full command
-    payload_response: bool, // to send back the shells output or not
     manual_request_id: Option<Uuid>,
 }
+
 
 #[async_trait]
 impl HiveHandleable for SystemInfoRecv {
     async fn handle(&self, ctx: &HiveContext) {
         // store in database somewhere
     }
+
+
 }
