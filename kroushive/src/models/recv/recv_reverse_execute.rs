@@ -1,11 +1,13 @@
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use krous_macros::register_hive_handler;
+use krous_macros::{register_hive_handler, register_axum_handler};
 use async_trait::async_trait;
 use common::registry::{HiveContext, HiveHandleable};
+use common::types::SharedHiveContext;
 
 #[derive(Debug, Deserialize)]
 #[register_hive_handler]
+#[register_axum_handler("/testpath")]
 pub struct ReverseExecuteRecv {
     _t: String,
     manual_request_id: Option<Uuid>,
@@ -26,7 +28,7 @@ pub struct ReverseExecuteSend {
 
 #[async_trait]
 impl HiveHandleable for ReverseExecuteRecv {
-    async fn handle(&self, ctx: &HiveContext) {
+    async fn handle(&self, ctx: SharedHiveContext) {
         // store in database somewhere
     }
 

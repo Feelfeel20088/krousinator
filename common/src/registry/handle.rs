@@ -1,6 +1,6 @@
 use crate::registry::{Context, HiveContext};
 use async_trait::async_trait;
-
+use crate::types::SharedHiveContext;
 
 #[async_trait]
 pub trait Handleable: Send + Sync {
@@ -10,11 +10,9 @@ pub trait Handleable: Send + Sync {
 #[async_trait]
 pub trait HiveHandleable: Send + Sync {
     
-    
-    async fn handle(&self, ctx: &HiveContext);
+    async fn handle(&self, ctx: SharedHiveContext);
 
     // figuer out what i need to pass to this guy. probely add my utility functions
     // into hivecontext so it can send other
 }
 
- 

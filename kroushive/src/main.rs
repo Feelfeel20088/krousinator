@@ -13,7 +13,7 @@ use common::{
         HandlerMeta, HandlerRegistry, HiveContext, HiveHandleable, HiveHandlerMeta,
         HiveHandlerRegistry, HiveProducer,
     },
-    types::{KuvasMap, ResponseWaiters},
+    types::{KuvasMap, ResponseWaiters, SharedHiveContext},
 };
 
 use futures_util::{
@@ -30,6 +30,10 @@ use tokio::{
     sync::Mutex,
 };
 
+
+use once_cell::sync::Lazy;
+
+
 use tokio_tungstenite::{accept_async, tungstenite::protocol::Message,};
 
 use uuid::Uuid;
@@ -37,120 +41,9 @@ use uuid::Uuid;
 mod models;
 
 
-#[derive(Deserialize)]
-pub struct KrousHiveEnvelope<T> 
-// where HiveHandleable + Send + Sync + 'static 
-{
-    krous_id: String,
-    #[serde(flatten)]
-    model: T,
-}
-
-// macro_rules! model_route {
-//     ($router:expr, $path:literal, $sender:tym, $recv:tym) => {
-//         $router.route($path, post(build_handler::<$sender, $recv>)
-//         )
-//     };
-// }
-
-
-
-
-// currently there is no check to see the model being passed in is a valid model.
-// front end softwhere will recv something back from the krousinator like { error: model not valid }
-// although this should never happen unless someone messes up the frontend code or someone is trying to use
-// the api
-
-async fn build_handler<S, R>(
-    Json(payload): Json<KrousHiveEnvelope<S>>,
-    Extension(client_map): Extension<KuvasMap>,
-    Extension(response_waiters): Extension<ResponseWaiters>,
-    Extension(context): Extension<&HiveContext>,
-) -> Result<Json<Box<dyn HiveHandleable + Send + Sync>>, Response>
-where
-    S: Serialize + Send + Sync + 'static,
-    R: HiveHandleable + Serialize + DeserializeOwned + Send + Sync + 'static,
-{
-    // Parse the UUID, return 404 if invalid
-    let krous_uuid = match Uuid::parse_str(&payload.krous_id) {
-        Ok(uuid) => uuid,
-        Err(_) => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                format!("Krousinator id {} is not a valid UUID", &payload.krous_id),
-            ).into_response());
-        }
-    };
-
-    // Serialize model to JSON string
-    let inner_json = serde_json::to_string(&payload.model).unwrap();
-
-    // Call your async function that sends request and gets a response
-    let recv_model = match send_request_to_krousinator(
-        krous_uuid,
-        client_map,
-        response_waiters,
-        inner_json,
-    )
-    .await
-    {
-        Ok(model) => model,
-        Err(err) => return Err(err),
-    };
-
-    // this will go down the stack sending and recving more 
-    // model until the orginal recv model returns the resulting struct 
-    // NOTE TO SELF. there is currently know way for models to add to themselfs like collecting 
-    // more info as it sends and recvs more models. it may be approite to return a diffrent type
-    // that each model defines as its resulting thingy 
-    recv_model.handle(&context).await;
-
-    // Return the result as JSON
-    Ok(Json(recv_model))
-}
-
-// TODO make a utility thing to store stuff like this in here
-async fn send_request_to_krousinator(
-    krousinator_id: Uuid,
-    client_map: KuvasMap,
-    response_waiters: ResponseWaiters,
-    payload: String,
-) -> Result<Box<dyn HiveHandleable + Send + Sync>, Response>
-{
-    loop {
-        let request_id = Uuid::new_v4();
-        let (tx, rx) =
-            tokio::sync::oneshot::channel::<Box<dyn HiveHandleable + 'static + Send + Sync>>();
-
-        // Register yourself as a waiter for this request ID
-        response_waiters.lock().await.insert(request_id, tx);
-
-        // payload is a allredy serded string produced in the build_handler function
-        let msg = Message::Text(payload.into());
-
-        // send the model to the correct krousinator
-        if let Some(krousinator_tx) = client_map.lock().await.get(&krousinator_id) {
-            krousinator_tx.send(msg).unwrap();
-        } else {
-            return Err((
-                StatusCode::NOT_FOUND,
-                format!("Krousinator with id {} is not found", &krousinator_id),
-            ).into_response());
-        }
-
-        // Wait for response (timeout optional)
-        let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
-            Ok(Ok(response)) => response,
-            _ => return Err(StatusCode::REQUEST_TIMEOUT.into_response()),
-        };
-
-        return Ok(response);
-    }
-}
-#[axum::debug_handler]
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    let kroushive_interface = HiveContext {};
+    let kroushive_interface = Arc::new(Mutex::new(HiveContext {}));
     let mut reg = Arc::new(Mutex::new(HiveHandlerRegistry::new()));
 
     let mut temp_reg = reg.lock().await;
@@ -165,23 +58,14 @@ async fn main() -> Result<(), std::io::Error> {
     let mut map = Arc::new(Mutex::new(HashMap::new()));
     let response_waiters: ResponseWaiters = Arc::new(Mutex::new(HashMap::new()));
 
-    use models::recv::recv_system_info::SystemInfoSend;
-    use models::recv::recv_system_info::SystemInfoRecv;
-    
-    // temp 
-    let app = Router::new()
 
-    .layer(Extension(map.clone()))
-    .layer(Extension(response_waiters.clone()))
-    .layer(Extension(&kroushive_interface))
-    // add your routes
-    .route("/coolpath", post(build_handler::<SystemInfoSend, SystemInfoRecv>));
-    // let app = model_route!(app, "/swarm/reverse_execute", KrousModelA);
+
 
 
     let webserver = TcpListener::bind("0.0.0.0:8080").await?;
     tokio::spawn(async move {
-        axum::serve(webserver, app).await.unwrap();
+        // this is werid
+        axum::serve(webserver, build_router()); // start server w routers
     });
 
     let websocket = TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -194,7 +78,7 @@ async fn main() -> Result<(), std::io::Error> {
             Arc::clone(&map),
             Arc::clone(&response_waiters),
             Arc::clone(&reg),
-            &kroushive_interface,
+            Arc::clone(&kroushive_interface),
         ));
     }
 }
@@ -205,7 +89,7 @@ async fn handle_connection(
     clients: KuvasMap,
     response_waiters: ResponseWaiters,
     reg: Arc<Mutex<HiveHandlerRegistry>>,
-    kroushive_interface: &HiveContext,
+    kroushive_interface: SharedHiveContext,
 ) {
     if let Ok(ws_stream) = accept_async(stream).await {
         let (mut write, mut read) = ws_stream.split();
@@ -264,10 +148,10 @@ async fn handle_connection(
                                     if let Some(waiter) =
                                         response_waiters.lock().await.remove(&req_id)
                                     {
-                                        let _ = waiter.send(model);
+                                        let _ = waiter.send(json);
                                     }
                                 } else {
-                                    model.handle(kroushive_interface).await
+                                    model.handle(kroushive_interface.clone()).await
                                 }
                             }
                             Err(_err) => continue,

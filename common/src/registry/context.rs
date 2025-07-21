@@ -2,8 +2,16 @@ use futures_util::SinkExt;
 use serde_json;
 use tokio::sync::mpsc::{Sender, channel};
 use uuid::Uuid;
+use tokio_tungstenite::tungstenite::Message;
+use axum::http::StatusCode;
+use crate::types::ResponseWaiters;
+use crate::registry::HiveHandleable;
+use axum::response::IntoResponse;
+use tokio::time::Duration;
+use serde_json::Value;
 
 type WebsocketWriter = futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, tokio_tungstenite::tungstenite::Message>;
+use crate::types::KuvasMap;
 
 
 pub struct Context {
@@ -58,5 +66,51 @@ impl Context {
 
 }
 
+
+
 pub struct HiveContext {}
+
+impl HiveContext {
+    async fn send_request_to_krousinator<T>(
+        krousinator_id: Uuid,
+        client_map: KuvasMap,
+        response_waiters: ResponseWaiters,
+        payload: String,
+    ) -> Result<Value, impl IntoResponse>
+    {
+        loop {
+            let request_id = Uuid::new_v4();
+            let (tx, rx) =
+                tokio::sync::oneshot::channel::<Value>();
+    
+            // Register yourself as a waiter for this request ID
+            response_waiters.lock().await.insert(request_id, tx);
+    
+            // payload is a allredy serded string produced in the build_handler function
+            let msg = Message::Text(payload.into());
+    
+            // send the model to the correct krousinator
+            if let Some(krousinator_tx) = client_map.lock().await.get(&krousinator_id) {
+                krousinator_tx.send(msg).unwrap();
+            } else {
+                return Err((
+                    StatusCode::NOT_FOUND,
+                    format!("Krousinator with id {} is not found", &krousinator_id),
+                ));
+            }
+    
+            // Wait for response (timeout optional)
+            let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
+                Ok(Ok(response)) => serde_json::from_value::<T>(response),
+                Err(Err(reason)) => return Err((
+                    StatusCode::REQUEST_TIMEOUT, 
+                    format!("Request timed out: {}", reason)
+                )),
+            };
+    
+            return Ok(response);
+        }
+    }
+    
+}
 
