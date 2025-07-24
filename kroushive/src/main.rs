@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use axum::{
     http::StatusCode,
@@ -14,6 +14,7 @@ use common::{
     },
     types::{KuvasMap, ResponseWaiters, SharedHiveContext},
 };
+use common::axum_register::temp::AxumRouteMeta;
 
 use futures_util::{
     stream::{SplitSink, SplitStream},
@@ -37,15 +38,81 @@ use uuid::Uuid;
 
 mod models;
 
+
+use tokio::{time::{sleep, Duration}};
+use std::io::{self, Write};
+
+const ASCII_ART: &str = r#"
+    )                         )                 
+ ( /( (           (        ( /( (    )      (   
+ )\()))(    (    ))\  (    )\()))\  /((    ))\  
+((_)\(()\   )\  /((_) )\  ((_)\((_)(_))\  /((_) 
+| |(_)((_) ((_)(_))( ((_) | |(_)(_)_)((_)(_))   
+| / /| '_|/ _ \| || |(_-< | ' \ | |\ V / / -_)  
+|_\_\|_|  \___/ \_,_|/__/ |_||_||_| \_/  \___|                              
+"#;
+
+const FLAME_COLORS: [&str; 4] = [
+    "\x1b[34m", // Blue
+    "\x1b[31m", // Red
+    "\x1b[33m", // Orange (approximated with Yellow)
+    "\x1b[97m", // Bright White
+];
+
+
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    let kroushive_interface = Arc::new(Mutex::new(HiveContext {}));
-    let mut reg = Arc::new(HiveHandlerRegistry::new());
 
-    // regester all handles
+    println!("\n\nINIT phase start...\n\n");
+
+    let mut lines: usize = 0;
+    let mut startLine: usize = 0;
+    let mut startLineSet: bool = false;
+    for (i, c) in ASCII_ART.chars().enumerate() {
+        if c == '\n' as char {
+            lines += 1;
+            if !startLineSet {
+                startLine = i + 1
+            }
+        } else if !(c == ' ' as char) && !startLineSet {
+            startLineSet = true;
+        }
+    }
+
+    let total_lines = lines;
+    lines = 0;
+    
+    for (i, c) in ASCII_ART.chars().enumerate().skip(startLine) {
+        if c == '\n' {
+            lines += 1;
+        }
+        
+        let color_index = (lines * FLAME_COLORS.len()) / total_lines;
+        let color = FLAME_COLORS[color_index.min(FLAME_COLORS.len() - 1)];
+    
+        print!("{}{}", color, c);
+        io::stdout().flush().unwrap();
+        sleep(Duration::from_millis(1)).await;
+    }
+    
+
+    println!("\x1b[0m\n");
+    
+
+    let kroushive_interface = Arc::new(Mutex::new(HiveContext {}));
+    let mut reg = HiveHandlerRegistry::new();
+    let mut r = Router::new();
+
+    // register all handlers
+    for route in inventory::iter::<AxumRouteMeta> {
+        println!("registering route: {}", route.path);
+        r = (route.register_fn)(r);
+    }
     for handler in inventory::iter::<HiveHandlerMeta> {
         reg.register(handler.name, handler.constructor);
     }
+
+    let arc_reg = Arc::new(reg);
 
     // state
     let mut map = Arc::new(Mutex::new(HashMap::new()));
@@ -53,8 +120,8 @@ async fn main() -> Result<(), std::io::Error> {
 
     let webserver = TcpListener::bind("0.0.0.0:8080").await?;
     tokio::spawn(async move {
-        // this is werid
-        axum::serve(webserver, build_router()); // start server w routers
+        
+        axum::serve(webserver, r); // start server w routers
     });
 
     let websocket = TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -66,7 +133,7 @@ async fn main() -> Result<(), std::io::Error> {
             // switch these to a one shot or store them into a globle object?
             Arc::clone(&map),
             Arc::clone(&response_waiters),
-            Arc::clone(&reg),
+            Arc::clone(&arc_reg),
             Arc::clone(&kroushive_interface),
         ));
     }
@@ -110,7 +177,7 @@ async fn handle_connection(
                     let json: Value = match serde_json::from_str(&raw_text) {
                         Ok(val) => val,
                         Err(_) => {
-                            println!("Found non-valid JSON. Skipping.");
+                            println!("Found invalid JSON. Skipping.");
                             continue;
                         }
                     };
@@ -136,8 +203,7 @@ async fn handle_connection(
                             if let Some(waiter) = response_waiters.lock().await.remove(&req_id) {
                                 let _ = waiter.send(json); // context handles model
                             } else {
-                                println!("manual request id not found in hashmap wich should be in there.")
-                                // TODO fix this later
+                                println!("manual request ID not found in hashmap which should be there.")
                             }
                         } else {
                             if let Some(Ok(model)) = reg.get(message_type, &raw_text) {

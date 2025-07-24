@@ -2,10 +2,12 @@ use crate::{
     registry::{HiveContext, HiveHandleable},
     types::{KuvasMap, ResponseWaiters, SharedHiveContext},
 };
-use axum::{http::StatusCode, response::IntoResponse, Router};
+use axum::{http::StatusCode, response::{Response, IntoResponse}, Router};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use uuid::Uuid;
+
+
 
 #[derive(Deserialize)]
 pub struct KrousHiveEnvelope<T> {
@@ -14,12 +16,13 @@ pub struct KrousHiveEnvelope<T> {
     pub model: T,
 }
 
-pub struct AxumRouteHander {
+pub struct AxumRouteMeta {
     pub path: &'static str,
     pub register_fn: fn(Router) -> Router,
 }
 
-inventory::collect!(AxumRouteHander);
+
+inventory::collect!(AxumRouteMeta);
 
 // currently there is no check to see the model being passed in is a valid model.
 // front end softwhere will recv something back from the krousinator like { error: model not valid }
@@ -30,7 +33,7 @@ pub async fn build_handler<T>(
     response_waiters: ResponseWaiters,
     context: SharedHiveContext,
     payload: KrousHiveEnvelope<T>,
-) -> impl IntoResponse
+) -> Response
 where
     T: HiveHandleable + Serialize + DeserializeOwned + Send + Sync + 'static,
 {

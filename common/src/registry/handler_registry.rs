@@ -17,7 +17,6 @@ impl HandlerRegistry {
 
     pub fn register(&mut self, name: &str, constructer: DynHandlerConstructor) {
         self.map.insert(name.to_string(), constructer);
-        println!("{}", name.to_string());
     }
 
     pub fn get(
@@ -45,7 +44,6 @@ impl HiveHandlerRegistry {
 
     pub fn register(&mut self, name: &str, constructer: DynHiveHandlerConstructor) {
         self.map.insert(name.to_string(), constructer);
-        println!("{}", name.to_string());
     }
 
     pub fn get(
@@ -57,10 +55,6 @@ impl HiveHandlerRegistry {
     }
 
     pub fn check(&self, name: &str) -> bool {
-        if let Some(_) = self.map.get(name) {
-            true
-        } else {
-            false
-        }
+        self.map.contains_key(name)
     }
 }

@@ -1,16 +1,44 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 
-use syn::{parse_macro_input, DeriveInput, ItemStruct};
+use syn::{parse_macro_input, DeriveInput, ItemStruct, LitStr};
 
 #[proc_macro_attribute]
 pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the macro attribute input as AttributeArgs (list of nested meta)
-    let path_lit = stringify!(attr);
+    
     // Parse the item the attribute is applied to (expecting a struct or enum)
     let input = parse_macro_input!(item as DeriveInput);
 
     let model_ident = &input.ident;
+
+    let mut path = ("/krous/".to_string() + &model_ident.to_string());
+
+    // IdentityResponseSend
+
+    let mut first_upper: bool = false;
+    let mut insert_positions = Vec::new();
+
+
+    for (i, c) in path.char_indices() {
+        if c.is_ascii_uppercase() {
+            if first_upper {
+                insert_positions.push(i);
+            } else {
+                first_upper = true;
+            }
+
+        }
+    }
+
+    for &pos in insert_positions.iter().rev() {
+        path.insert(pos, '_');
+    }
+
+    path = path.to_lowercase();
+
+    let path_lit = LitStr::new(&path, proc_macro2::Span::call_site());
+
 
     let handler_fn = format_ident!("{}_handler", model_ident.to_string().to_lowercase());
     let register_fn = format_ident!("register_{}", model_ident.to_string().to_lowercase());
@@ -37,7 +65,7 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
         // Submit metadata to inventory for dynamic registration
         inventory::submit! {
             AxumRouteMeta {
-                path: #path_lit,
+                path: #path,
                 register_fn: #register_fn,
             }
         }
