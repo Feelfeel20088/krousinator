@@ -1,4 +1,4 @@
-use crate::registry::{Context, HiveContext};
+use crate::registry::Context;
 use async_trait::async_trait;
 use crate::types::SharedHiveContext;
 

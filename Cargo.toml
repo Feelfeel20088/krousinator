@@ -1,9 +1,2 @@
 [workspace]
-members = [
-    "krousinator",
-    "kroushive",
-    "installer",
-    "common",
-    "dummy"
-    
-]
+members = ["krousinator", "kroushive", "common", "dummy"]

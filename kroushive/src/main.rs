@@ -2,18 +2,16 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use axum::Router;
 
+use common::axum_register::temp::AxumRouteMeta;
 use common::{
     registry::{
-        HiveContext, HiveHandleable, HiveHandlerMeta,
+        context::KrousEnvelopeSend, HiveContext, HiveHandleable, HiveHandlerMeta,
         HiveHandlerRegistry,
     },
     types::{KuvasMap, ResponseWaiters, SharedHiveContext},
 };
-use common::axum_register::temp::AxumRouteMeta;
 
-use futures_util::{
-    SinkExt, StreamExt,
-};
+use futures_util::{SinkExt, StreamExt};
 
 use serde_json::Value;
 
@@ -22,16 +20,14 @@ use tokio::{
     sync::Mutex,
 };
 
-
 use tokio_tungstenite::{accept_async, tungstenite::protocol::Message};
 
 use uuid::Uuid;
 
 mod models;
 
-
-use tokio::{time::{sleep, Duration}};
 use std::io::{self, Write};
+use tokio::time::{sleep, Duration};
 
 const ASCII_ART: &str = r#"
     )                         )                 
@@ -50,10 +46,8 @@ const FLAME_COLORS: [&str; 4] = [
     "\x1b[97m", // Bright White
 ];
 
-
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-
     println!("\n\nINIT phase start...\n\n");
 
     let mut lines: usize = 0;
@@ -72,23 +66,21 @@ async fn main() -> Result<(), std::io::Error> {
 
     let total_lines = lines;
     lines = 0;
-    
+
     for (i, c) in ASCII_ART.chars().enumerate().skip(startLine) {
         if c == '\n' {
             lines += 1;
         }
-        
+
         let color_index = (lines * FLAME_COLORS.len()) / total_lines;
         let color = FLAME_COLORS[color_index.min(FLAME_COLORS.len() - 1)];
-    
+
         print!("{}{}", color, c);
         io::stdout().flush().unwrap();
         sleep(Duration::from_millis(1)).await;
     }
-    
 
     println!("\x1b[0m\n");
-    
 
     let kroushive_interface = Arc::new(Mutex::new(HiveContext {}));
     let mut reg = HiveHandlerRegistry::new();
@@ -111,8 +103,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     let webserver = TcpListener::bind("0.0.0.0:8080").await?;
     tokio::spawn(async move {
-        
-        axum::serve(webserver, r); // start server w routers
+        let _ = axum::serve(webserver, r).await; // start server w routers
     });
 
     let websocket = TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -130,6 +121,7 @@ async fn main() -> Result<(), std::io::Error> {
     }
 }
 
+// TODO optimise
 async fn handle_connection(
     stream: TcpStream,
     addr: SocketAddr,
@@ -175,10 +167,18 @@ async fn handle_connection(
 
                     println!("{}", raw_text); // debugging
 
+                    let model_json = match json.get("model").and_then(|v| v.as_str()) {
+                        Some(t) => t,
+                        None => {
+                            println!("No '_t' field found in model. Skipping.");
+                            continue;
+                        }
+                    };
+
                     let message_type = match json.get("_t").and_then(|v| v.as_str()) {
                         Some(t) => t,
                         None => {
-                            println!("No '_t' field found in message. Skipping.");
+                            println!("No '_t' field found in model. Skipping.");
                             continue;
                         }
                     };
@@ -194,10 +194,12 @@ async fn handle_connection(
                             if let Some(waiter) = response_waiters.lock().await.remove(&req_id) {
                                 let _ = waiter.send(json); // context handles model
                             } else {
-                                println!("manual request ID not found in hashmap which should be there.")
+                                println!(
+                                    "manual request ID not found in hashmap which should be there."
+                                )
                             }
                         } else {
-                            if let Some(Ok(model)) = reg.get(message_type, &raw_text) {
+                            if let Some(Ok(model)) = reg.get(message_type, &model_json) {
                                 model.handle(Arc::clone(&kroushive_interface)).await;
                             } else {
                                 continue;

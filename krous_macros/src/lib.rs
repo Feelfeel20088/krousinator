@@ -1,24 +1,16 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 
-use syn::{parse_macro_input, DeriveInput, ItemStruct, LitStr};
+use syn::{parse_macro_input, DeriveInput, ItemStruct, LitStr, Path};
 
 #[proc_macro_attribute]
 pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStream {
-    // Parse the macro attribute input as AttributeArgs (list of nested meta)
-    
-    // Parse the item the attribute is applied to (expecting a struct or enum)
     let input = parse_macro_input!(item as DeriveInput);
-
     let model_ident = &input.ident;
-
-    let mut path = ("/krous/".to_string() + &model_ident.to_string());
-
-    // IdentityResponseSend
+    let mut path = "/krous/".to_string() + &model_ident.to_string();
 
     let mut first_upper: bool = false;
     let mut insert_positions = Vec::new();
-
 
     for (i, c) in path.char_indices() {
         if c.is_ascii_uppercase() {
@@ -27,7 +19,6 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
             } else {
                 first_upper = true;
             }
-
         }
     }
 
@@ -35,10 +26,7 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
         path.insert(pos, '_');
     }
 
-    path = path.to_lowercase();
-
-    let path_lit = LitStr::new(&path, proc_macro2::Span::call_site());
-
+    let path_lit = LitStr::new(&path.to_lowercase(), proc_macro2::Span::call_site());
 
     let handler_fn = format_ident!("{}_handler", model_ident.to_string().to_lowercase());
     let register_fn = format_ident!("register_{}", model_ident.to_string().to_lowercase());
@@ -54,7 +42,7 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
             axum::extract::Extension(context): axum::extract::Extension<SharedHiveContext>,
             axum::Json(payload): axum::Json<KrousHiveEnvelope<#model_ident>>,
         ) -> axum::response::Response {
-            build_handler::<#model_ident>(client_map, response_waiters, context, payload).await
+            build_handler::<$T1, $T2>(client_map, response_waiters, context, payload).await
         }
 
         // Generated function to register the route with axum router

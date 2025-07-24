@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use common::registry::HiveHandleable;
-use krous_macros::{register_hive_handler, register_axum_handler};
+use common::types::SharedHiveContext;
+use krous_macros::register_hive_handler;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use common::types::SharedHiveContext;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DiskInfo {
@@ -26,7 +26,6 @@ pub struct NetworkInterfaceInfo {
 
 #[derive(Deserialize, Serialize, Debug)]
 #[register_hive_handler]
-#[register_axum_handler("/testpath")]
 pub struct SystemInfoRecv {
     manual_request_id: Option<Uuid>,
     hostname: String,
@@ -75,12 +74,9 @@ pub struct SystemInfoSend {
     manual_request_id: Option<Uuid>,
 }
 
-
 #[async_trait]
 impl HiveHandleable for SystemInfoRecv {
     async fn handle(&self, ctx: SharedHiveContext) {
         // store in database somewhere
     }
-
-
 }

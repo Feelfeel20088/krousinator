@@ -1,13 +1,12 @@
 use async_trait::async_trait;
 use common::registry::HiveHandleable;
 use common::types::SharedHiveContext;
-use krous_macros::{register_axum_handler, register_hive_handler};
+use krous_macros::register_hive_handler;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[register_hive_handler]
-#[register_axum_handler("/testpath")]
 pub struct IdentityReqRecv {
     _t: String,
 }
@@ -15,7 +14,6 @@ pub struct IdentityReqRecv {
 #[derive(Debug, Serialize)]
 pub struct IdentityResponseSend {
     _t: String,
-    manual_request_id: Uuid,
 }
 
 #[async_trait]
