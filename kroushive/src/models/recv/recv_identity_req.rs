@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use common::registry::{HiveContext, HiveHandleable};
-use krous_macros::{register_hive_handler, register_axum_handler};
+use common::types::SharedHiveContext;
+use krous_macros::{register_axum_handler, register_hive_handler};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use common::types::SharedHiveContext;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[register_hive_handler]
 #[register_axum_handler("/testpath")]
 pub struct IdentityReqRecv {
@@ -21,5 +21,4 @@ pub struct IdentityResponseSend {
 #[async_trait]
 impl HiveHandleable for IdentityReqRecv {
     async fn handle(&self, ctx: SharedHiveContext) {}
-
 }

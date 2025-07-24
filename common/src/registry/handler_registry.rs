@@ -55,4 +55,12 @@ impl HiveHandlerRegistry {
     ) -> Option<Result<Box<dyn HiveHandleable + Send + Sync + 'static>, serde_json::Error>> {
         self.map.get(name).map(|ctor| ctor(json))
     }
+
+    pub fn check(&self, name: &str) -> bool {
+        if let Some(_) = self.map.get(name) {
+            true
+        } else {
+            false
+        }
+    }
 }
