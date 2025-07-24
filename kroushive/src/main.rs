@@ -1,11 +1,10 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{
-    Extension,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{post},
-    Json, Router,
+    routing::post,
+    Extension, Json, Router,
 };
 
 use common::{
@@ -21,7 +20,7 @@ use futures_util::{
     SinkExt, Stream, StreamExt,
 };
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 
 use tokio::{
@@ -30,37 +29,27 @@ use tokio::{
     sync::Mutex,
 };
 
-
 use once_cell::sync::Lazy;
 
-
-use tokio_tungstenite::{accept_async, tungstenite::protocol::Message,};
+use tokio_tungstenite::{accept_async, tungstenite::protocol::Message};
 
 use uuid::Uuid;
 
 mod models;
 
-
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     let kroushive_interface = Arc::new(Mutex::new(HiveContext {}));
-    let mut reg = Arc::new(Mutex::new(HiveHandlerRegistry::new()));
+    let mut reg = Arc::new(HiveHandlerRegistry::new());
 
-    let mut temp_reg = reg.lock().await;
     // regester all handles
     for handler in inventory::iter::<HiveHandlerMeta> {
-        temp_reg.register(handler.name, handler.constructor);
+        reg.register(handler.name, handler.constructor);
     }
-
-    
 
     // state
     let mut map = Arc::new(Mutex::new(HashMap::new()));
     let response_waiters: ResponseWaiters = Arc::new(Mutex::new(HashMap::new()));
-
-
-
-
 
     let webserver = TcpListener::bind("0.0.0.0:8080").await?;
     tokio::spawn(async move {
@@ -88,7 +77,7 @@ async fn handle_connection(
     addr: SocketAddr,
     clients: KuvasMap,
     response_waiters: ResponseWaiters,
-    reg: Arc<Mutex<HiveHandlerRegistry>>,
+    reg: Arc<HiveHandlerRegistry>,
     kroushive_interface: SharedHiveContext,
 ) {
     if let Ok(ws_stream) = accept_async(stream).await {
@@ -141,29 +130,25 @@ async fn handle_connection(
                         .and_then(|v| v.as_str())
                         .and_then(|s| Uuid::parse_str(s).ok());
 
-                    match reg.lock().await.get(message_type, &raw_text) {
-                        Some(model) => match model {
-                            Ok(model) => {
-                                if let Some(req_id) = manual_request_id {
-                                    if let Some(waiter) =
-                                        response_waiters.lock().await.remove(&req_id)
-                                    {
-                                        let _ = waiter.send(json);
-                                    }
-                                } else {
-                                    model.handle(kroushive_interface.clone()).await
-                                }
+                    // switch mutex to tokio::sync::RwLock for better preformance
+                    if reg.check(message_type) {
+                        if let Some(req_id) = manual_request_id {
+                            if let Some(waiter) = response_waiters.lock().await.remove(&req_id) {
+                                let _ = waiter.send(json); // context handles model
+                            } else {
+                                println!("manual request id not found in hashmap wich should be in there.")
+                                // TODO fix this later
                             }
-                            Err(_err) => continue,
-                        },
-                        None => {
-                            println!("No handler found for type '{}'. Skipping.", message_type);
-                            continue;
+                        } else {
+                            if let Some(Ok(model)) = reg.get(message_type, &raw_text) {
+                                model.handle(Arc::clone(&kroushive_interface)).await;
+                            } else {
+                                continue;
+                            }
                         }
                     }
                 }
-                
-                
+
                 Some(Err(e)) => {
                     eprintln!("WebSocket error: {}", e);
                     continue;
