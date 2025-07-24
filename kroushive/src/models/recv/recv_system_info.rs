@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common::registry::{HiveContext, HiveHandleable};
+use common::registry::HiveHandleable;
 use krous_macros::{register_hive_handler, register_axum_handler};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

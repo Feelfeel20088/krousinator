@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common::registry::{HiveContext, HiveHandleable};
+use common::registry::HiveHandleable;
 use common::types::SharedHiveContext;
 use krous_macros::{register_axum_handler, register_hive_handler};
 use serde::{Deserialize, Serialize};

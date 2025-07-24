@@ -1,36 +1,27 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    routing::post,
-    Extension, Json, Router,
-};
+use axum::Router;
 
 use common::{
     registry::{
-        HandlerMeta, HandlerRegistry, HiveContext, HiveHandleable, HiveHandlerMeta,
-        HiveHandlerRegistry, HiveProducer,
+        HiveContext, HiveHandleable, HiveHandlerMeta,
+        HiveHandlerRegistry,
     },
     types::{KuvasMap, ResponseWaiters, SharedHiveContext},
 };
 use common::axum_register::temp::AxumRouteMeta;
 
 use futures_util::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, Stream, StreamExt,
+    SinkExt, StreamExt,
 };
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 
 use tokio::{
-    io::{AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
     sync::Mutex,
 };
 
-use once_cell::sync::Lazy;
 
 use tokio_tungstenite::{accept_async, tungstenite::protocol::Message};
 
@@ -115,7 +106,7 @@ async fn main() -> Result<(), std::io::Error> {
     let arc_reg = Arc::new(reg);
 
     // state
-    let mut map = Arc::new(Mutex::new(HashMap::new()));
+    let map = Arc::new(Mutex::new(HashMap::new()));
     let response_waiters: ResponseWaiters = Arc::new(Mutex::new(HashMap::new()));
 
     let webserver = TcpListener::bind("0.0.0.0:8080").await?;
