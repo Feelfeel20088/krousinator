@@ -34,15 +34,15 @@ inventory::collect!(AxumRouteMeta);
 // front end softwhere will recv something back from the krousinator like { error: model not valid }
 // although this should never happen unless someone messes up the frontend code or someone is trying to use
 // the api
-pub async fn build_handler<T, T2>(
+pub async fn build_handler<T>(
     client_map: KuvasMap,
     response_waiters: ResponseWaiters,
     context: SharedHiveContext,
     payload: KrousHiveAxumEnvelopeRecv<T>,
+    type_name: String,
 ) -> Response
 where
-    T: HiveProducer + Serialize + DeserializeOwned + Send + Sync + 'static,
-    T2: HiveHandleable + Serialize + DeserializeOwned + Send + Sync + 'static,
+    T: Serialize + Send + Sync + 'static,
 {
     match payload.krous_id {
         KrousId::Id(id) => {
@@ -57,11 +57,12 @@ where
                 }
             };
 
-            let recv_model = match HiveContext::send_request_to_krousinator::<T, T2>(
+            let recv_model = match HiveContext::send_request_to_krousinator::<T>(
                 krous_uuid,
                 client_map,
                 response_waiters,
                 payload.model,
+                type_name,
             )
             .await
             {

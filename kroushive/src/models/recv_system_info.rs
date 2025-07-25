@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common::registry::HiveHandleable;
 use common::types::SharedHiveContext;
-use krous_macros::register_hive_handler;
+use krous_macros::{register_axum_handler, register_hive_handler};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -68,7 +68,9 @@ pub struct SystemInfoRecv {
     is_laptop: bool,
     // pub environment_vars: Option<std::collections::HashMap<String, String>>,
 }
-#[derive(Serialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[register_axum_handler]
+
 pub struct SystemInfoSend {
     _t: String,
     manual_request_id: Option<Uuid>,

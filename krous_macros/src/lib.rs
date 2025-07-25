@@ -25,8 +25,9 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
     for &pos in insert_positions.iter().rev() {
         path.insert(pos, '_');
     }
+    path = path.to_lowercase();
 
-    let path_lit = LitStr::new(&path.to_lowercase(), proc_macro2::Span::call_site());
+    let path_lit = LitStr::new(&path, proc_macro2::Span::call_site());
 
     let handler_fn = format_ident!("{}_handler", model_ident.to_string().to_lowercase());
     let register_fn = format_ident!("register_{}", model_ident.to_string().to_lowercase());
@@ -34,15 +35,16 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
     let expanded = quote! {
         #input
         use common::types::{KuvasMap, ResponseWaiters};
-        use common::axum_register::temp::{KrousHiveEnvelope, build_handler, AxumRouteMeta};
+        use common::axum_register::temp::{KrousHiveAxumEnvelopeRecv, build_handler, AxumRouteMeta};
         // Generated handler function
+        #[axum::debug_handler]
         async fn #handler_fn(
             axum::extract::Extension(client_map): axum::extract::Extension<KuvasMap>,
             axum::extract::Extension(response_waiters): axum::extract::Extension<ResponseWaiters>,
             axum::extract::Extension(context): axum::extract::Extension<SharedHiveContext>,
-            axum::Json(payload): axum::Json<KrousHiveEnvelope<#model_ident>>,
+            axum::Json(payload): axum::Json<KrousHiveAxumEnvelopeRecv<#model_ident>>,
         ) -> axum::response::Response {
-            build_handler::<$T1, $T2>(client_map, response_waiters, context, payload).await
+            build_handler::<#model_ident>(client_map, response_waiters, context, payload, stringify!(#model_ident).to_string()).await
         }
 
         // Generated function to register the route with axum router

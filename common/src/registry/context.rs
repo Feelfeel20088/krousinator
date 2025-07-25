@@ -24,16 +24,21 @@ use crate::types::KuvasMap;
 #[derive(Serialize, Deserialize)]
 pub struct KrousEnvelopeSend<T> {
     pub manual_request_id: Option<Uuid>,
+    pub id: Uuid,
+    pub _t: String,
+    #[serde(skip_deserializing)]
     pub model: T,
 }
 
 impl<T> KrousEnvelopeSend<T>
 where
-    T: Serialize + DeserializeOwned + Send + Sync + 'static,
+    T: Serialize + Send + Sync + 'static,
 {
-    fn new(manual_request_id: Option<Uuid>, model: T) -> Self {
+    fn new(manual_request_id: Option<Uuid>, id: Uuid, _t: String, model: T) -> Self {
         Self {
             manual_request_id,
+            id,
+            _t,
             model,
         }
     }
@@ -47,13 +52,6 @@ where
                     "Model sent is not valid json".to_string(),
                 ))
             }
-        }
-    }
-
-    fn dserd(v: Value) -> Result<KrousEnvelopeSend<T>, ()> {
-        match serde_json::from_value::<Self>(v) {
-            Ok(inner) => Ok(inner),
-            Err(_) => return Err(()),
         }
     }
 }
@@ -111,70 +109,67 @@ impl Context {
 pub struct HiveContext {}
 
 impl HiveContext {
-    pub async fn send_request_to_krousinator<T, T2>(
+    pub async fn send_request_to_krousinator<T>(
         krousinator_id: Uuid,
         client_map: KuvasMap,
         response_waiters: ResponseWaiters,
         payload: T,
-    ) -> Result<T2, impl IntoResponse>
+        type_name: String,
+    ) -> Result<Box<dyn HiveHandleable + Send + Sync>, (StatusCode, String)>
     where
-        T: HiveProducer + Serialize + DeserializeOwned + Send + Sync + 'static,
-        T2: HiveHandleable + Serialize + DeserializeOwned + Send + Sync + 'static,
+        T: Serialize + Send + Sync + 'static,
     {
         let request_id = Uuid::new_v4();
-        let (tx, rx) = tokio::sync::oneshot::channel::<Value>();
+        let (tx, rx) = tokio::sync::oneshot::channel::<Box<dyn HiveHandleable + Send + Sync>>();
+
         // Register yourself as a waiter for this request ID
         response_waiters.lock().await.insert(request_id, tx);
-        let envelope = KrousEnvelopeSend::new(Some(request_id), payload);
 
+        // Wrap payload into envelope
+        let envelope = KrousEnvelopeSend::new(Some(request_id), krousinator_id, type_name, payload);
+
+        // Serialize the envelope
         let s = match envelope.serd() {
             Ok(s) => s,
-            Err(e) => return Err(e),
+            Err(e) => {
+                return Err(e);
+            }
         };
 
-        let msg = Message::Text(s.into());
+        let msg = tokio_tungstenite::tungstenite::Message::Text(s.into());
 
-        // send the model to the correct krousinator
+        // Send the model to the correct krousinator
         if let Some(krousinator_tx) = client_map.lock().await.get(&krousinator_id) {
-            krousinator_tx.send(msg).unwrap();
+            if let Err(e) = krousinator_tx.send(msg) {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to send message: {}", e),
+                ));
+            }
         } else {
             return Err((
                 StatusCode::NOT_FOUND,
-                format!("Krousinator with id {} is not found", &krousinator_id),
+                format!("Krousinator with id {} not found", krousinator_id),
             ));
         }
 
         // Wait for response
-        let response: KrousEnvelopeSend<T2> =
-            match tokio::time::timeout(Duration::from_secs(60), rx).await {
-                Ok(Ok(response)) => match KrousEnvelopeSend::dserd(response) {
-                    Ok(model) => model,
-                    Err(_) => {
-                        return Err((
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            format!("Failed to serulize response from krousinator"),
-                        ))
-                    }
-                },
+        let response = match tokio::time::timeout(Duration::from_secs(60), rx).await {
+            Ok(Ok(response_value)) => response_value,
+            Ok(Err(recv_err)) => {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to receive response: {}", recv_err),
+                ));
+            }
+            Err(elapsed) => {
+                return Err((
+                    StatusCode::REQUEST_TIMEOUT,
+                    format!("Request timed out after {}", elapsed),
+                ));
+            }
+        };
 
-                Ok(Err(recv_err)) => {
-                    return Err((
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        format!("Failed to receive response: {}", recv_err),
-                    ))
-                }
-
-                Err(elapsed) => {
-                    return Err((
-                        StatusCode::REQUEST_TIMEOUT,
-                        format!(
-                            "Failed to receive response, request timed out in {}",
-                            elapsed.to_string()
-                        ),
-                    ))
-                }
-            };
-
-        return Ok(response.model);
+        Ok(response)
     }
 }
