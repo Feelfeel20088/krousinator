@@ -13,6 +13,10 @@ use std::path::Path;
 use tokio::fs::create_dir_all;
 use tokio::fs::File;
 
+mod generated;
+
+use generated::IMAGES;
+
 #[cfg(target_os = "windows")]
 static DEST_PATH: &str = "C:\\ProgramData\\MyApp";
 
@@ -44,7 +48,7 @@ async fn move_binary() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::main]
 async fn main() {
     // setup
-
+    println!("{:#?}", IMAGES[0]);
     // move_binary().unwrap_or_else(|e| panic!("moving binary operation failed: {}", e)).await;
     let mut reg: HandlerRegistry = HandlerRegistry::new();
 

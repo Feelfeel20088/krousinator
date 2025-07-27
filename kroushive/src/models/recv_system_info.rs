@@ -27,7 +27,6 @@ pub struct NetworkInterfaceInfo {
 #[derive(Deserialize, Serialize, Debug)]
 #[register_hive_handler]
 pub struct SystemInfoRecv {
-    manual_request_id: Option<Uuid>,
     hostname: String,
     os_name: String,
     os_version: String,
@@ -72,7 +71,6 @@ pub struct SystemInfoRecv {
 #[register_axum_handler]
 
 pub struct SystemInfoSend {
-    _t: String,
     manual_request_id: Option<Uuid>,
 }
 

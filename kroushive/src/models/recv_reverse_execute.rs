@@ -8,16 +8,13 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize, Serialize)]
 #[register_hive_handler]
 pub struct ReverseExecuteRecv {
-    _t: String,
     pub successful: bool,
-    pub uuid: Uuid,
     pub response: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[register_axum_handler]
 pub struct ReverseExecuteSend {
-    _t: String,
     payload: String,        // full command
     payload_response: bool, // to send back the shells output or not
 }

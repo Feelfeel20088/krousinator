@@ -3,19 +3,16 @@ use common::registry::HiveHandleable;
 use common::types::SharedHiveContext;
 use krous_macros::{register_axum_handler, register_hive_handler};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[register_hive_handler]
 pub struct FileTransferRecv {
-    _t: String,
     pub successful: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[register_axum_handler]
 pub struct FileTransferSend {
-    _t: String,
     binary: Vec<u8>, // full binary, image or any file u want to send over.
 }
 
