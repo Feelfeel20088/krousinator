@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
             0,
             "",
             "???",
-            "Kuvas is always watching",
+            "Kuvas is always watching 0,0",
             &[],
             hints,
             5000, // Timeout in ms

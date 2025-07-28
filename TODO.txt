@@ -1,4 +1,3 @@
 # setup a database that krosehives can talk to
-.37      homelab-3   <none>           <none>
-default                   ssh-server-6b69d8957d-qzmcv                         1/1     Running   1 (26d ago)      27d   10.42.
-\
+# move code out of common into respective folders
+# move models into common so i dont have to define things twice with diffrent names 
