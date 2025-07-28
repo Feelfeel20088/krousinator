@@ -6,7 +6,7 @@ Krousinator is a modular offensive security framework designed to orchestrate, d
 
 ---
 
-![Krousinator Network Diagram](./images/krousinator_network_diagram.png)
+![Krousinator Network Diagram](./images/krousiantor_network_diegram.png)
 
 ---
 
