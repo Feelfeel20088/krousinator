@@ -3,6 +3,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use axum::Router;
 
 use common::axum_register::temp::AxumRouteMeta;
+use common::registry::context::KrousEnvelopeRecv;
 use common::{
     registry::{HiveContext, HiveHandlerMeta, HiveHandlerRegistry},
     types::{KuvasMap, ResponseWaiters, SharedHiveContext},
@@ -182,13 +183,14 @@ async fn handle_connection(
                         }
                     };
 
-                    let json: Value = match serde_json::from_str(&raw_text) {
-                        Ok(val) => val,
-                        Err(_) => {
-                            println!("Found invalid JSON. Skipping.");
-                            continue;
-                        }
-                    };
+                    let json: KrousEnvelopeRecv =
+                        match serde_json::from_str::<KrousEnvelopeRecv>(&raw_text) {
+                            Ok(val) => val,
+                            Err(_) => {
+                                println!("Found invalid JSON. Skipping.");
+                                continue;
+                            }
+                        };
 
                     println!("{}", raw_text); // debugging
 

@@ -1,4 +1,4 @@
-use crate::registry::{HiveHandleable, HiveProducer};
+use crate::registry::{HiveHandleable, HiveHandlerRegistry, HiveProducer};
 
 use crate::types::ResponseWaiters;
 use axum::http::StatusCode;
@@ -7,6 +7,7 @@ use futures_util::SinkExt;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use serde_json::Error;
 use serde_json::Value;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::time::Duration;
@@ -20,7 +21,7 @@ type WebsocketWriter = futures_util::stream::SplitSink<
 use crate::types::KuvasMap;
 
 // add more things as needed it should be meta data that needs to be included in
-// every req to both krousinator and kroushive
+// ev#[derive(serde::Deserialize)]ery req to both krousinator and kroushive
 #[derive(Serialize, Deserialize)]
 pub struct KrousEnvelopeSend<T> {
     pub manual_request_id: Option<Uuid>,
@@ -28,6 +29,44 @@ pub struct KrousEnvelopeSend<T> {
     pub _t: String,
     #[serde(skip_deserializing)]
     pub model: T,
+}
+#[derive(serde::Deserialize)]
+struct KrousEnvelopeHelper {
+    pub manual_request_id: Option<Uuid>,
+    pub id: Uuid,
+    pub _t: String,
+    pub model: String,
+}
+
+pub struct KrousEnvelopeRecv {
+    pub manual_request_id: Option<Uuid>,
+    pub id: Uuid,
+    pub _t: String,
+
+    pub model: Box<dyn HiveHandleable + Send + Sync>,
+}
+
+impl KrousEnvelopeRecv {
+    fn deserialize(deserializer: String, reg: &HiveHandlerRegistry) -> Result<Self, Error> {
+        let helper = match serde_json::from_str::<KrousEnvelopeHelper>(&deserializer) {
+            Ok(helper) => helper,
+            Err(e) => return Err(e),
+        };
+
+        // You can switch based on `_t` or just use a default model
+        let model: Box<dyn HiveHandleable + Send + Sync> = match reg.get(&helper._t, &helper.model)
+        {
+            "noop" => Box::new(NoopHandler),
+            _ => Box::new(NoopHandler), // fallback
+        };
+
+        Ok(KrousEnvelopeRecv {
+            manual_request_id: helper.manual_request_id,
+            id: helper.id,
+            _t: helper._t,
+            model,
+        })
+    }
 }
 
 impl<T> KrousEnvelopeSend<T>
