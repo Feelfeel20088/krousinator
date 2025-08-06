@@ -11,10 +11,8 @@ pub use entry::HandlerMeta;
 pub use entry::HiveHandlerMeta;
 
 pub use context::Context;
-pub use context::HiveContext;
 
 pub use handle::Handleable;
 pub use handle::HiveHandleable;
 
-pub use producer::HiveProducer;
 pub use producer::Producer;
