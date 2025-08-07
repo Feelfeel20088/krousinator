@@ -35,7 +35,7 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
     let expanded = quote! {
         #input
         use common::types::{KuvasMap, ResponseWaiters};
-        use common::axum_register::temp::{KrousHiveAxumEnvelopeRecv, build_handler, AxumRouteMeta};
+        use krous_core::api::auto_reg::{KrousHiveAxumEnvelopeRecv, auto_handle, AxumRouteMeta};
         // Generated handler function
         #[axum::debug_handler]
         async fn #handler_fn(
@@ -44,7 +44,7 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
             axum::extract::Extension(context): axum::extract::Extension<SharedHiveContext>,
             axum::Json(payload): axum::Json<KrousHiveAxumEnvelopeRecv<#model_ident>>,
         ) -> axum::response::Response {
-            build_handler::<#model_ident>(client_map, response_waiters, context, payload, stringify!(#model_ident).to_string()).await
+            auto_handle::<#model_ident>(client_map, response_waiters, context, payload, stringify!(#model_ident).to_string()).await
         }
 
         // Generated function to register the route with axum router

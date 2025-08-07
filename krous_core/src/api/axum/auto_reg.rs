@@ -8,11 +8,11 @@ use axum::{
     Router,
 };
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Deserialize)]
-pub enum KrousId {
+enum KrousId {
     Id(String),
     Broadcast,
 }
@@ -34,7 +34,7 @@ inventory::collect!(AxumRouteMeta);
 // front end softwhere will recv something back from the krousinator like { error: model not valid }
 // although this should never happen unless someone messes up the frontend code or someone is trying to use
 // the api
-pub async fn build_handler<T>(
+pub async fn auto_handle<T>(
     client_map: KuvasMap,
     response_waiters: ResponseWaiters,
     context: SharedHiveContext,

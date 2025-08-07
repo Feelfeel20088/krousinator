@@ -1,4 +1,5 @@
-use crate::registry::{handle::Handleable, HiveHandleable};
+use super::traits::handlers::{Handleable, HiveHandleable};
+
 pub type DynHandlerConstructor =
     fn(&str) -> Result<Box<dyn Handleable + Send + Sync>, serde_json::Error>;
 pub type DynHiveHandlerConstructor =

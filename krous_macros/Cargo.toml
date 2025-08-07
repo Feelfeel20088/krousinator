@@ -7,7 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-common = { path = "../common" }
+krous_core = { path = "../krous_core" }
 
 proc-macro2 = "1"
 quote = "1"

@@ -22,6 +22,7 @@ use tokio_tungstenite::{accept_async, tungstenite::protocol::Message};
 
 use uuid::Uuid;
 
+mod api;
 mod models;
 
 use std::io::{self, Write};

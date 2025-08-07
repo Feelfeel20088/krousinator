@@ -729,11 +729,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "krous_core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "inventory",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "krous_macros"
 version = "0.1.0"
 dependencies = [
  "colored",
- "common",
+ "krous_core",
  "proc-macro2",
  "quote",
  "syn",
