@@ -1,0 +1,8 @@
+[package]
+name = "test_dbus"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zbus = { version = "5.9.0", default-features = false, features = ["tokio"] }
+tokio = { version = "1.45.1", features = ["full"] }

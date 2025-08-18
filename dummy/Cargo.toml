@@ -1,0 +1,10 @@
+[package]
+name = "dummy"
+version = "0.1.0"
+edition = "2021"
+
+
+
+[[bin]]
+name = "target-process"
+path = "src/bin/target-process.rs"

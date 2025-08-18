@@ -1,0 +1,18 @@
+[package]
+name = "krous_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+axum = { version = "0.8.4", features = ["macros"] }
+inventory = "0.3"
+uuid = { version = "1.4", features = ["v4", "serde"] }
+serde_json = "1.0"
+async-trait = "0.1.88"
+tokio = { version = "1.45.1", features = ["full"] }
+tokio-tungstenite = { version = "0.27.0", features = ["native-tls"] }
+futures-util = "0.3"

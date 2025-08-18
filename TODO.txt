@@ -1,0 +1,3 @@
+# setup a database that krosehives can talk to
+# move code out of common into respective folders
+# move models into common so i dont have to define things twice with diffrent names 
