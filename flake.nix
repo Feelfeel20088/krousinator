@@ -1,5 +1,5 @@
 {
-  description = "Krousinator dev shell";
+  description = "Krousinator dev shell and package";
 
   inputs = {
     utils.url = "github:numtide/flake-utils";
@@ -8,47 +8,66 @@
     # rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { nixpkgs, utils, ... }:
-    utils.lib.eachDefaultSystem (system:
-      let 
-        pkgs = import nixpkgs { inherit system; };
-      in
-      {
-        devShell = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            cargo rustc rustfmt clippy rust-analyzer gnumake42
-          ];
+  outputs = { self, nixpkgs, utils, ... }: let 
+    pkgs = nixpkgs.legacyPackages."x86_64-linux";
+    krousinator = pkgs.callPackage ./nix/default.nix {};
+  in {
+    packages = {
+      
+      # Linux build
+      x86_64-linux = {
+        kroushive = krousinator.kroushive;
+      };
 
-          nativeBuildInputs = [pkgs.pkg-config];
-          env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-        };
-      }
-      # let
-      #   overlays = [ (import rust-overlay) ];
-      #   pkgs = import nixpkgs { inherit system overlays; };
-      #   rust-bin = pkgs.rust-bin;
-      # in
-      # {
-      #   formatter = pkgs.nixpkgs-fmt;
+      
+      x86_64-windows = {
+        krousinator = krousinator.krousinator;
+      };
+    };
 
-      #   devShell = pkgs.mkShell {
-      #     buildInputs = with pkgs; [
-      #       pkg-config
-      #       openssl
+    devShells."x86_64-linux".default = pkgs.mkShell {
+      buildInputs = with pkgs; [
+        cargo rustc rustfmt clippy rust-analyzer gnumake42
+      ];
 
-      #       (rust-bin.stable.latest.default.override {
-      #         extensions = [
-      #           "clippy"
-      #           "rust-src"
-      #           "rust-analyzer"
-      #         ];
-      #         targets = [
-      #           "thumbv6m-none-eabi"
-      #           "x86_64-unknown-linux-gnu"
-      #         ];
-      #       })
-      #     ];
-      #   };
-      # }
-    );
+      nativeBuildInputs = [pkgs.pkg-config];
+        env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+    };
+  };
 }
+
+# {
+#   description = "Krousinator dev shell and package";
+
+#   inputs = {
+#     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+#     crane.url = "github:ipetkov/crane";
+#     flake-utils.url = "github:numtide/flake-utils";
+#   };
+
+#   outputs = { self, nixpkgs, crane, flake-utils, ... }:
+#     flake-utils.lib.eachDefaultSystem (system:
+#       let
+#         pkgs = nixpkgs.legacyPackages.${system};
+#         craneLib = crane.mkLib pkgs;
+#       in
+#     {
+#       packages.default = craneLib.buildPackage {
+#         src = craneLib.cleanCargoSource ./.;
+
+#         # Add extra inputs here or any other derivation settings
+#         doCheck = true;
+#         buildInputs = [ pkgs.gnumake42 ];
+#         nativeBuildInputs = [ pkgs.pkg-config ];
+
+#       };
+#       devShells."x86_64-linux".default = pkgs.mkShell {
+#         buildInputs = with pkgs; [
+#           cargo rustc rustfmt clippy rust-analyzer gnumake42
+#         ];
+
+#         nativeBuildInputs = [pkgs.pkg-config];
+#           env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+#         };
+#     });
+# }
