@@ -14,7 +14,7 @@
   in {
     packages = {
       
-      # Linux build
+      
       x86_64-linux = {
         kroushive = krousinator.kroushive;
       };
