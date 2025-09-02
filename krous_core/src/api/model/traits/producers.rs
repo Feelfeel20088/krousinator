@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::context::context::Context;
+use crate::context::{context::Context, hive_context::HiveContext};
 
 #[async_trait]
 pub trait HiveProducer: Sized {

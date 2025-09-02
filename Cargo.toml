@@ -1,2 +1,2 @@
 [workspace]
-members = ["krousinator", "kroushive", "dummy", "test_dbus"]
+members = ["krousinator", "kroushive", "dummy", "test_dbus", "injector"]

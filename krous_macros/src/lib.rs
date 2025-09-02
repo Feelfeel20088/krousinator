@@ -1,10 +1,10 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 
-use syn::{parse_macro_input, DeriveInput, ItemStruct, LitStr, Path};
+use syn::{parse_macro_input, DeriveInput, ItemStruct, LitStr};
 
 #[proc_macro_attribute]
-pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn register_axum_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);
     let model_ident = &input.ident;
     let mut path = "/krous/".to_string() + &model_ident.to_string();
@@ -34,17 +34,16 @@ pub fn register_axum_handler(attr: TokenStream, item: TokenStream) -> TokenStrea
 
     let expanded = quote! {
         #input
-        use common::types::{KuvasMap, ResponseWaiters};
-        use krous_core::api::auto_reg::{KrousHiveAxumEnvelopeRecv, auto_handle, AxumRouteMeta};
+        use krous_core::types::{KuvasMap, ResponseWaiters};
+        use krous_core::api::axum::auto_reg::{KrousHiveAxumEnvelopeRecv, auto_handle, AxumRouteMeta};
         // Generated handler function
         #[axum::debug_handler]
         async fn #handler_fn(
             axum::extract::Extension(client_map): axum::extract::Extension<KuvasMap>,
             axum::extract::Extension(response_waiters): axum::extract::Extension<ResponseWaiters>,
-            axum::extract::Extension(context): axum::extract::Extension<SharedHiveContext>,
             axum::Json(payload): axum::Json<KrousHiveAxumEnvelopeRecv<#model_ident>>,
         ) -> axum::response::Response {
-            auto_handle::<#model_ident>(client_map, response_waiters, context, payload, stringify!(#model_ident).to_string()).await
+            auto_handle::<#model_ident>(client_map, response_waiters, payload, stringify!(#model_ident).to_string()).await
         }
 
         // Generated function to register the route with axum router
@@ -75,11 +74,11 @@ pub fn register_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #input
 
         inventory::submit! {
-            common::registry::HandlerMeta {
+            krous_core::api::model::meta::HandlerMeta {
                 name: stringify!(#struct_name),
                 constructor: |json| {
                     match serde_json::from_str::<#struct_name>(json) {
-                        Ok(model) => Ok(Box::new(model) as Box<dyn common::registry::Handleable + Send + Sync>),
+                        Ok(model) => Ok(Box::new(model) as Box<dyn krous_core::api::model::traits::handlers::Handleable>),
                         Err(e) => {
                             #[cfg(debug_assertions)]
                             {
@@ -113,11 +112,11 @@ pub fn register_hive_handler(_attr: TokenStream, item: TokenStream) -> TokenStre
         #input
 
         inventory::submit! {
-            common::registry::HiveHandlerMeta {
+            krous_core::api::model::meta::HiveHandlerMeta {
                 name: stringify!(#struct_name),
                 constructor: |json| {
                     match serde_json::from_str::<#struct_name>(json) {
-                        Ok(model) => Ok(Box::new(model) as Box<dyn common::registry::HiveHandleable + Send + Sync>),
+                        Ok(model) => Ok(Box::new(model) as Box<dyn krous_core::api::model::traits::handlers::HiveHandleable>),
                         Err(e) => {
                             #[cfg(debug_assertions)]
                             {

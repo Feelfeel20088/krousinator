@@ -1,28 +1,21 @@
-// use tokio::{fs::File, io::AsyncWriteExt};
-
-// #[no_mangle]
-// pub extern "C" fn init() {
-//     let rt = tokio::runtime::Runtime::new().unwrap();
-
-//     rt.block_on(async {
-//         let mut output = File::create("/home/felix/projects/krousinator/krousinator/src/output.log")
-//             .await
-//             .unwrap();
-
-//         loop {
-//             output.write_all(b"Library injected successfully!\n").await.unwrap();
-
-//             // Add a small delay to avoid spamming the disk
-//             println!("hello my freind the so was injected and working");
-//             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-//         }
-//     });
-// }
+use std::{ffi::CString, ptr::null_mut};
+use winapi::um::winuser::{MessageBoxA, MB_OK};
 
 #[no_mangle]
-pub extern "C" fn init() {
-    loop {
-        let _ = std::fs::write("/tmp/injected.txt", b"Hello from injected .so!\n");
-        std::thread::sleep(std::time::Duration::from_secs(1));
+pub extern "stdcall" fn msg_frm_vx() {
+    let msg = CString::new("Malware resources needs to be free and wide").expect("Failed");
+    let cap = CString::new("Message From Vx-Underground").expect("Error cap");
+    unsafe {
+        MessageBoxA(null_mut(), msg.as_ptr(), cap.as_ptr(), MB_OK);
+    }
+}
+
+// stdcall in C
+#[no_mangle]
+pub extern "system" fn msg_frm_smukx() {
+    let msg = CString::new("Custom DLL's are always Cool. Bye").expect("Failed");
+    let cap = CString::new("Message From SMukx").expect("Error cap");
+    unsafe {
+        MessageBoxA(null_mut(), msg.as_ptr(), cap.as_ptr(), MB_OK);
     }
 }

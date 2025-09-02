@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common::registry::HiveHandleable;
-use common::types::SharedHiveContext;
+use krous_core::{
+    api::model::traits::handlers::HiveHandleable, context::hive_context::HiveContext,
+};
 use krous_macros::{register_axum_handler, register_hive_handler};
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +19,7 @@ pub struct FileTransferSend {
 
 #[async_trait]
 impl HiveHandleable for FileTransferRecv {
-    async fn handle(&self, ctx: SharedHiveContext) {
+    async fn handle(&self, ctx: HiveContext) {
         // store in database somewhere
     }
 }

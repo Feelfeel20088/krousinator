@@ -6,15 +6,19 @@ use uuid::Uuid;
 
 use crate::{
     api::model::{meta, traits::handlers::HiveHandleable},
-    context::shared::{KrousEnvelopeRecv, KrousEnvelopeSend},
+    context::shared::{KrousEnvelopeRecv, KrousEnvelopeSend, KrousHiveMeta},
     types::{KuvasMap, ResponseWaiters},
 };
 
 pub struct HiveContext {
-    meta: KrousEnvelopeRecv,
+    pub meta: KrousHiveMeta,
 }
 
 impl HiveContext {
+    pub fn new(meta: KrousHiveMeta) -> Self {
+        Self { meta }
+    }
+
     fn get_krousid(&self) -> Uuid {
         return self.meta.id;
     }

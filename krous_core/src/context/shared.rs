@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
@@ -31,14 +31,23 @@ pub struct KrousEnvelopeRecv {
     pub model: Box<dyn HiveHandleable + Send + Sync>,
 }
 
+pub struct KrousHiveMeta {
+    pub manual_request_id: Option<Uuid>,
+    pub id: Uuid,
+    pub _t: String,
+}
+
 impl KrousEnvelopeRecv {
-    pub fn deserialize(deserializer: String, reg: &HiveHandlerRegistry) -> Result<Self, Error> {
+    pub fn deserialize(
+        deserializer: &String,
+        reg: &HiveHandlerRegistry,
+    ) -> Result<Self, serde_json::Error> {
         let helper = match serde_json::from_str::<KrousEnvelopeHelper>(&deserializer) {
             Ok(helper) => helper,
             Err(e) => return Err(e),
         };
 
-        // You can switch based on `_t` or just use a default model
+        // TODO make a custom enum for errors instead of the result and option enums
         let model: Box<dyn HiveHandleable + Send + Sync> = match reg.get(&helper._t, &helper.model)
         {
             Some(Ok(model)) => model,
@@ -49,7 +58,7 @@ impl KrousEnvelopeRecv {
                 This is not normal behavior and most likely indicates the client is sending malformed payloads.\n\
                 This could mean the client code is broken, or someone is attempting to simulate a client."
                 );
-                return e;
+                return Err(e);
             }
 
             None => {
@@ -57,7 +66,10 @@ impl KrousEnvelopeRecv {
                     "Error: model type '{}' was not found in the registry.",
                     &helper._t
                 );
-                return Error;
+                return Err(serde_json::Error::custom(format!(
+                    "Error: model type '{}' was not found in the registry.",
+                    &helper._t
+                )));
             }
         };
 
@@ -67,6 +79,15 @@ impl KrousEnvelopeRecv {
             _t: helper._t,
             model,
         })
+    }
+
+    pub fn split(self) -> (Box<dyn HiveHandleable + Send + Sync>, KrousHiveMeta) {
+        let meta = KrousHiveMeta {
+            manual_request_id: self.manual_request_id,
+            id: self.id,
+            _t: self._t,
+        };
+        (self.model, meta)
     }
 }
 

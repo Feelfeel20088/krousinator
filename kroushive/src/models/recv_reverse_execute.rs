@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use common::registry::HiveHandleable;
-use common::types::SharedHiveContext;
+use krous_core::{
+    api::model::traits::handlers::HiveHandleable, context::hive_context::HiveContext,
+};
 use krous_macros::{register_axum_handler, register_hive_handler};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[register_hive_handler]
@@ -21,7 +21,7 @@ pub struct ReverseExecuteSend {
 
 #[async_trait]
 impl HiveHandleable for ReverseExecuteRecv {
-    async fn handle(&self, ctx: SharedHiveContext) {
+    async fn handle(&self, ctx: HiveContext) {
         // store in database somewhere
     }
 }

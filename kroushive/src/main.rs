@@ -1,10 +1,9 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use axum::Router;
-
-use common::axum_register::temp::AxumRouteMeta;
-use common::registry::context::KrousEnvelopeRecv;
-use common::{
+use krous_core::registry::context::KrousEnvelopeRecv;
+use krous_core::KrousHiveCore;
+use krous_core::{
     registry::{HiveContext, HiveHandlerMeta, HiveHandlerRegistry},
     types::{KuvasMap, ResponseWaiters, SharedHiveContext},
 };
@@ -27,9 +26,11 @@ mod models;
 use std::io::{self, Write};
 use tokio::time::{sleep, Duration};
 
+// TODO make actual api for krouscore
+
 // constants
 const WEBSERVER_URL: &str = "0.0.0.0:8080";
-const TUNGSTENITE_URL: &str = "0.0.0.0:8080";
+const TUNGSTENITE_URL: &str = "0.0.0.0:3000";
 const DEBUG: bool = true;
 
 const ASCII_ART: &str = r#"
@@ -39,7 +40,9 @@ const ASCII_ART: &str = r#"
 ((_)\(()\   )\  /((_) )\  ((_)\((_)(_))\  /((_) 
 | |(_)((_) ((_)(_))( ((_) | |(_)(_)_)((_)(_))   
 | / /| '_|/ _ \| || |(_-< | ' \ | |\ V / / -_)  
-|_\_\|_|  \___/ \_,_|/__/ |_||_||_| \_/  \___|                              
+|_\_\|_|  \___/ \_,_|/__/ |_||_||_| \_/  \___|   
+
+
 "#;
 
 const FLAME_COLORS: [&str; 4] = [
@@ -87,33 +90,10 @@ async fn banner() {
 async fn main() -> Result<(), std::io::Error> {
     println!("\n\nINIT phase start...\n\n");
 
+    let core = KrousHiveCore::new();
+
     banner().await;
 
-    let kroushive_interface = Arc::new(Mutex::new(HiveContext {}));
-    let mut reg = HiveHandlerRegistry::new();
-    let mut r = Router::new();
-
-    // register all handlers
-    for route in inventory::iter::<AxumRouteMeta> {
-        println!("registering route: {}", route.path);
-        r = (route.register_fn)(r);
-    }
-    for handler in inventory::iter::<HiveHandlerMeta> {
-        reg.register(handler.name, handler.constructor);
-    }
-
-    let arc_reg = Arc::new(reg);
-
-    // state
-    let map = Arc::new(Mutex::new(HashMap::new()));
-    let response_waiters: ResponseWaiters = Arc::new(Mutex::new(HashMap::new()));
-
-    let webserver = TcpListener::bind(WEBSERVER_URL).await?;
-    tokio::spawn(async move {
-        let _ = axum::serve(webserver, r)
-            .await
-            .expect("Axum failed to start"); // start server w routers
-    });
     let w_items: Vec<&str> = WEBSERVER_URL.split(":").collect();
 
     println!("Axum started on {} on port {}", w_items[0], w_items[1]);
@@ -125,8 +105,6 @@ async fn main() -> Result<(), std::io::Error> {
         t_items[0], t_items[1]
     );
 
-    let websocket = TcpListener::bind("0.0.0.0:3000").await.unwrap();
-
     println!("INIT phase successful");
 
     loop {
@@ -137,7 +115,7 @@ async fn main() -> Result<(), std::io::Error> {
             // switch these to a one shot or store them into a globle object?
             Arc::clone(&map),
             Arc::clone(&response_waiters),
-            &arc_reg,
+            &reg,
             Arc::clone(&kroushive_interface),
         ));
     }

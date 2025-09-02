@@ -16,4 +16,5 @@ async-trait = "0.1.80"
 inventory = "0.3"
 colored = "3.0"
 krous_macros = { path = "../krous_macros" }
+krous_core = { path = "../krous_core" }
 once_cell = "1.21.3"
